@@ -1,5 +1,6 @@
 import { createSignal, onMount, onCleanup } from "solid-js";
 import { Github, Linkedin } from "lucide-solid";
+import CollinPfeiferImage from "/collin.pfeifer4.jpeg";
 
 export default function Terminal() {
   const [typedCommand, setTypedCommand] = createSignal<string>("");
@@ -51,7 +52,7 @@ export default function Terminal() {
                 <div class="h-29  rounded-lg flex items-center justify-center">
                   <img
                     class="h-29 rounded-md"
-                    src="src/assets/collin.pfeifer4.jpeg"
+                    src={CollinPfeiferImage}
                     alt="Photo of Collin Pfeifer"
                   />
                 </div>
