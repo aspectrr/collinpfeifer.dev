@@ -41,7 +41,9 @@ export default function Terminal() {
             <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
             <div class="w-3 h-3 rounded-full bg-green-500"></div>
           </div>
-          <div class="text-white text-center flex-1 font-mono">fish</div>
+          <div class="text-white text-center flex-1 font-mono mr-13.5">
+            fish
+          </div>
         </div>
 
         {/* Terminal Content */}
