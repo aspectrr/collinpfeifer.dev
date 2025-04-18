@@ -81,7 +81,7 @@ export default function Terminal() {
           {showOutput() && (
             <div class="flex space-x-4 mt-6">
               <a
-                href="https://github.com/collinpfeifer"
+                href="https://github.com/aspectrr"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="p-2 bg-purple-800 rounded-md hover:bg-purple-600 transition-colors flex items-center gap-2 text-white"
