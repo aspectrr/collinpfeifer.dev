@@ -71,7 +71,7 @@ export default function Terminal() {
                 <div class="text-white font-mono space-y-2 transition-opacity duration-500 opacity-100">
                   <p>Collin Pfeifer</p>
                   <p>Typescript, Python, Go</p>
-                  <p>Infra @ OmniSOC</p>
+                  <p>Infra @ IU</p>
                 </div>
               )}
             </div>
