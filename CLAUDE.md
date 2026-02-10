@@ -4,22 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Personal website (collinpfeifer.dev). Recently migrated from Vite + React to Astro with SolidJS integration.
+Personal website (collinpfeifer.dev). Recently migrated from Vite + React to Astro.
 
 ## Commands
 
 - `bun dev` - dev server at localhost:4321
 - `bun build` - production build to `./dist/`
 - `bun preview` - preview production build locally
+- `bun lint` - run lint checks
+- `bun format` - format the codebase
 
-No test or lint commands configured.
+No automated test commands configured.
 
 ## Stack
 
 - **Framework**: Astro 5 (static site generator)
-- **UI library**: SolidJS (via `@astrojs/solid-js` integration)
+- **UI**: Astro components and standard web platform features
 - **Package manager**: bun
-- **TypeScript**: strict mode, JSX set to `preserve` with `solid-js` import source
+- **TypeScript**: enabled with a strict configuration
 
 ## Architecture
 
