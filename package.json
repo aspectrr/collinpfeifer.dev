@@ -8,8 +8,6 @@
     "preview": "astro preview",
     "check": "astro check",
     "astro": "astro",
-    "lint": "eslint . --cache",
-    "format": "prettier --write .",
     "typecheck": "tsc -b"
   },
   "dependencies": {
