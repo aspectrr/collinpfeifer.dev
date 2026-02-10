@@ -8,32 +8,48 @@ const posts = (await getCollection("blog")).sort(
 ---
 
 <Layout
-  title="Blog - collinpfeifer.dev"
+  title="collinpfeifer.dev"
   description="Blog posts from Collin Pfeifer"
 >
   <div class="min-h-screen text-white bg-black">
-    <header class="px-6 pt-24 pb-12">
-      <div class="mx-auto max-w-2xl">
+    <header class="relative px-6 py-24 overflow-hidden">
+      <img
+        src="/art/G-fD3zSWMAAv6L4.jpeg"
+        alt=""
+        aria-hidden="true"
+        class="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none"
+        style="mask-image: linear-gradient(to bottom, black 70%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);"
+      />
+      <div class="relative z-10 mx-auto max-w-2xl">
         <div class="flex justify-between items-center mb-6">
           <div class="flex gap-3 items-center">
             <a
               href="/"
-              class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline"
+              class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
             >
-              <span class="text-blue-400">$</span>
-              <span class="text-white">collinpfeifer.dev</span>
+              Collin Pfeifer
             </a>
           </div>
           <div class="flex gap-6 text-sm font-mono text-neutral-400">
-            <a href="/blog" class="text-neutral-200">Blog</a>
+            <a href="/blog" class="text-neutral-200">blog</a>
             <a
               href="https://github.com/aspectrr"
               target="_blank"
               rel="noopener noreferrer"
-              class="hover:text-neutral-200 transition-colors">GitHub</a
+              class="hover:text-neutral-200 transition-colors">github</a
             >
           </div>
         </div>
+        <p class="mt-2 text-neutral-400">
+          Craftsman. Working on 🌊 <a
+            href="https://fluid.sh"
+            target="_blank"
+            class="hover:text-[#93c5fd] transition-colors"
+            rel="noopener noreferrer"
+          >
+            fluid.sh</a
+          >
+        </p>
       </div>
     </header>
 
