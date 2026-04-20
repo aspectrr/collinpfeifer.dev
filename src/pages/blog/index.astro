@@ -12,7 +12,7 @@ const posts = (await getCollection("blog")).sort(
   description="Blog posts from Collin Pfeifer"
 >
   <div class="min-h-screen text-white bg-black">
-    <header class="relative px-6 py-24 overflow-hidden">
+    <header class="relative px-6 py-24 mt-8 overflow-hidden">
       <img
         src="/art/G-fD3zSWMAAv6L4.jpeg"
         alt=""
@@ -22,14 +22,12 @@ const posts = (await getCollection("blog")).sort(
       />
       <div class="relative z-10 mx-auto max-w-2xl">
         <div class="flex justify-between items-center mb-6">
-          <div class="flex gap-3 items-center">
-            <a
-              href="/"
-              class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
-            >
-              Collin Pfeifer
-            </a>
-          </div>
+          <a
+            href="/"
+            class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
+          >
+            Collin Pfeifer
+          </a>
           <div class="flex gap-6 text-sm font-mono text-neutral-400">
             <a href="/blog" class="text-neutral-200">blog</a>
             <a
@@ -41,62 +39,48 @@ const posts = (await getCollection("blog")).sort(
           </div>
         </div>
         <p class="mt-2 text-neutral-400">
-          Craftsman. Working on 🌊 <a
-            href="https://fluid.sh"
+          Craftsman. Working on 🦌 <a
+            href="https://trydeer.sh"
             target="_blank"
-            class="hover:text-[#93c5fd] transition-colors"
+            class="hover:text-[#228B22] transition-colors"
             rel="noopener noreferrer"
           >
-            fluid.sh</a
+            deer.sh</a
           >
         </p>
+        <h2 class="mt-12 text-3xl md:text-4xl font-serif italic text-neutral-200">Writing</h2>
       </div>
     </header>
 
-    <main class="px-6 pb-24">
-      <div class="mx-auto max-w-2xl space-y-3">
+    <main class="px-6 pb-24 mt-6">
+      <div class="mx-auto max-w-2xl space-y-4">
         {
           posts.map((post) => (
             <a
               href={`/blog/${post.slug}`}
-              class="block p-4 rounded-lg bg-neutral-900/50 border border-neutral-800 hover:border-blue-500/30 transition-all duration-300 no-underline hover:no-underline group"
+              class="block p-6 rounded-lg bg-neutral-900/50 border border-neutral-800 hover:border-neutral-600 transition-all duration-300 no-underline hover:no-underline group"
             >
-              <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                <h2 class="text-neutral-200 group-hover:text-blue-400 transition-colors font-mono text-sm">
-                  {post.data.title}
-                </h2>
-                <time
-                  datetime={post.data.pubDate.toISOString()}
-                  class="text-xs font-mono text-neutral-600 whitespace-nowrap"
-                >
-                  {post.data.pubDate.toLocaleDateString("en-us", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </time>
-              </div>
+              <h3 class="text-xl font-serif italic text-neutral-200 group-hover:text-white transition-colors leading-snug">
+                {post.data.title}
+              </h3>
               <p class="mt-2 text-sm text-neutral-500 line-clamp-2">
                 {post.data.description}
               </p>
-              {post.data.author && (
-                <div class="mt-3 flex items-center gap-2">
-                  {post.data.authorImage ? (
-                    <img
-                      src={`/images/${post.data.authorImage.split("/").pop()}`}
-                      alt={post.data.author}
-                      class="w-5 h-5 rounded-full border border-neutral-700"
-                    />
-                  ) : (
-                    <div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-[10px] text-blue-400 font-mono">
-                      {post.data.author.charAt(0)}
-                    </div>
-                  )}
-                  <span class="text-xs font-mono text-neutral-600">
-                    {post.data.author}
-                  </span>
-                </div>
-              )}
+              <div class="mt-3 flex items-center gap-3">
+                <time
+                  datetime={post.data.pubDate.toISOString()}
+                  class="text-xs font-mono text-neutral-600"
+                >
+                  {post.data.pubDate.toLocaleDateString("en-us", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </time>
+                {post.data.author && (
+                  <span class="text-xs text-neutral-600">· {post.data.author}</span>
+                )}
+              </div>
             </a>
           ))
         }

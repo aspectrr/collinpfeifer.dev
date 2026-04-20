@@ -2,6 +2,7 @@
 
 @theme {
     --font-logo: "NeueMachina", ui-sans-serif, system-ui;
+    --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
 }
 
 @font-face {
