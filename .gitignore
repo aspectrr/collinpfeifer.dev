@@ -24,3 +24,5 @@ pnpm-debug.log*
 .idea/
 
 tsconfig.tsbuildinfo
+.crush.json
+.crush

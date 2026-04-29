@@ -2,14 +2,14 @@
 import Layout from "../../layouts/Layout.astro";
 import { getCollection } from "astro:content";
 
-const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
-  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-);
+const sessions = (
+  await getCollection("coding-sessions", ({ data }) => !data.draft)
+).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
 <Layout
-  title="collinpfeifer.dev"
-  description="Blog posts from Collin Pfeifer"
+  title="Coding Sessions — collinpfeifer.dev"
+  description="Favorite coding session transcripts"
 >
   <div class="min-h-screen text-white bg-black">
     <header class="relative px-6 py-24 overflow-hidden">
@@ -29,8 +29,8 @@ const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
             Collin Pfeifer
           </a>
           <div class="flex gap-6 text-sm font-mono text-neutral-400">
-            <a href="/blog" class="text-neutral-200">blog</a>
-            <a href="/coding-sessions" class="hover:text-neutral-200 transition-colors">sessions</a>
+            <a href="/blog" class="hover:text-neutral-200 transition-colors">blog</a>
+            <a href="/coding-sessions" class="text-neutral-200">sessions</a>
             <a
               href="https://github.com/aspectrr"
               target="_blank"
@@ -49,34 +49,36 @@ const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
             deer.sh</a
           >
         </p>
-        <h2 class="mt-12 text-3xl md:text-4xl font-serif italic text-neutral-200">Writing</h2>
+        <h2 class="mt-12 text-3xl md:text-4xl font-serif italic text-neutral-200">Coding Sessions</h2>
+        <p class="mt-2 text-neutral-500 text-sm">Transcripts from my favorite sessions with AI coding agents — and why I like them.</p>
       </div>
     </header>
 
     <main class="px-6 pb-24 mt-6">
       <div class="mx-auto max-w-2xl space-y-4">
         {
-          posts.map((post) => (
+          sessions.map((session) => (
             <a
-              href={`/blog/${post.slug}`}
+              href={`/coding-sessions/${session.slug}`}
               class="block p-6 rounded-lg bg-neutral-900/50 border border-neutral-800 hover:border-neutral-600 transition-all duration-300 no-underline hover:no-underline group"
             >
               <h3 class="text-xl font-serif italic text-neutral-200 group-hover:text-white transition-colors leading-snug">
-                {post.data.title}
+                {session.data.title}
               </h3>
-              <div class="mt-3 flex items-center gap-3">
+              <p class="mt-2 text-sm text-neutral-500 line-clamp-2">{session.data.description}</p>
+              <div class="mt-3 flex items-center gap-3 flex-wrap">
                 <time
-                  datetime={post.data.pubDate.toISOString()}
+                  datetime={session.data.pubDate.toISOString()}
                   class="text-xs font-mono text-neutral-600"
                 >
-                  {post.data.pubDate.toLocaleDateString("en-us", {
+                  {session.data.pubDate.toLocaleDateString("en-us", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
                   })}
                 </time>
-                {post.data.author && (
-                  <span class="text-xs text-neutral-600">· {post.data.author}</span>
+                {session.data.cost && (
+                  <span class="text-xs font-mono text-neutral-700">· {session.data.cost}</span>
                 )}
               </div>
             </a>
@@ -90,5 +92,11 @@ const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
 <style>
   a {
     text-decoration: none !important;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 </style>

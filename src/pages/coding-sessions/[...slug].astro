@@ -1,0 +1,234 @@
+---
+import { type CollectionEntry, getCollection } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+
+export async function getStaticPaths() {
+  const sessions = await getCollection("coding-sessions", ({ data }) => !data.draft);
+  return sessions.map((session) => ({
+    params: { slug: session.slug },
+    props: session,
+  }));
+}
+
+type Props = CollectionEntry<"coding-sessions">;
+
+const session = Astro.props;
+const { Content } = await session.render();
+---
+
+<Layout title={`${session.data.title} — Coding Session`}>
+  <div class="min-h-screen text-white bg-black">
+    <header class="relative px-6 py-24 overflow-hidden">
+      <img
+        src="/art/G-fD3zSWMAAv6L4.jpeg"
+        alt=""
+        aria-hidden="true"
+        class="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none"
+        style="mask-image: linear-gradient(to bottom, black 70%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);"
+      />
+      <div class="relative z-10 mx-auto max-w-2xl">
+        <div class="flex justify-between items-center mb-6">
+          <a
+            href="/"
+            class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
+          >
+            Collin Pfeifer
+          </a>
+          <div class="flex gap-6 text-sm font-mono text-neutral-400">
+            <a href="/blog" class="hover:text-neutral-200 transition-colors">blog</a>
+            <a href="/coding-sessions" class="text-neutral-200">sessions</a>
+            <a
+              href="https://github.com/aspectrr"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-neutral-200 transition-colors">github</a
+            >
+          </div>
+        </div>
+
+        <h1 class="mt-8 text-3xl md:text-5xl font-serif italic text-neutral-100 leading-tight">
+          {session.data.title}
+        </h1>
+
+        <div class="mt-4 flex items-center gap-3 flex-wrap text-sm text-neutral-500">
+          <time datetime={session.data.pubDate.toISOString()}>
+            {session.data.pubDate.toLocaleDateString("en-us", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </time>
+          {session.data.cost && (
+            <span class="font-mono text-xs text-neutral-700">· {session.data.cost}</span>
+          )}
+          {session.data.tokens && (
+            <span class="font-mono text-xs text-neutral-700">· {session.data.tokens}</span>
+          )}
+        </div>
+
+        <div class="mt-4 p-4 rounded-lg bg-neutral-900/60 border border-neutral-800">
+          <p class="text-sm text-neutral-400 italic">{session.data.description}</p>
+        </div>
+
+        <div class="mt-4">
+          <a
+            href="/coding-sessions"
+            class="text-xs font-mono text-neutral-600 hover:text-neutral-400 transition-colors"
+          >
+            ← back to sessions
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main class="px-6 pb-24 mt-6">
+      <article class="mx-auto max-w-2xl">
+        <div class="transcript max-w-none">
+          <Content />
+        </div>
+      </article>
+    </main>
+  </div>
+</Layout>
+
+<style is:global>
+  /* Transcript-specific styles */
+  .transcript h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    display: inline-block;
+  }
+
+  .transcript h4:first-child {
+    margin-top: 0;
+  }
+
+  .transcript p {
+    margin-bottom: 1rem;
+    color: #a3a3a3;
+    line-height: 1.75;
+    font-size: 0.95rem;
+  }
+
+  .transcript strong {
+    color: #e5e5e5;
+    font-weight: 600;
+  }
+
+  .transcript code {
+    color: #228B22;
+    background-color: #0f2e1a;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  .transcript pre {
+    background-color: #071a0e !important;
+    border: 1px solid #0f2e1a;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    overflow-x: auto;
+  }
+
+  .transcript pre code {
+    color: #228B22;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+
+  .transcript blockquote {
+    border-left: 2px solid #262626;
+    padding-left: 1rem;
+    margin-left: 0;
+    margin-right: 0;
+    color: #737373;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  .transcript blockquote strong {
+    color: #a3a3a3;
+  }
+
+  .transcript hr {
+    border-color: #262626;
+    margin: 2rem 0;
+  }
+
+  .transcript a {
+    color: #228B22;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    transition: color 0.2s;
+  }
+
+  .transcript a:hover {
+    color: #32a852;
+  }
+
+  .transcript ul, .transcript ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1.25rem;
+    color: #a3a3a3;
+  }
+
+  .transcript li {
+    margin-bottom: 0.5rem;
+    line-height: 1.7;
+  }
+
+  /* Details/summary for sub-agent blocks */
+  .transcript details {
+    margin: 1rem 0;
+    border: 1px solid #1a1a1a;
+    border-radius: 0.5rem;
+    background: #0a0a0a;
+  }
+
+  .transcript summary {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #737373;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .transcript summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .transcript summary::before {
+    content: "▶";
+    font-size: 0.65rem;
+    transition: transform 0.2s;
+  }
+
+  .transcript details[open] summary::before {
+    transform: rotate(90deg);
+  }
+
+  .transcript summary strong {
+    color: #a3a3a3;
+    font-weight: 600;
+  }
+
+  .transcript details > p,
+  .transcript details > ul,
+  .transcript details > blockquote {
+    padding: 0 1rem 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+  }
+</style>

@@ -120,4 +120,35 @@ const { title, description = "collinpfeifer.dev" } = Astro.props;
         background-color: #171717 !important;
         border: 1px solid #262626;
     }
+
+    .proof, .solution {
+        margin: 1.5rem 0;
+        padding: 1rem 1.25rem 1rem 1.25rem;
+        border-left: 3px solid var(--blue);
+        background: rgba(96, 165, 250, 0.04);
+        border-radius: 0 0.375rem 0.375rem 0;
+        font-style: italic;
+        position: relative;
+    }
+
+    .proof::before {
+        content: "Proof. ";
+        font-weight: 600;
+        font-style: normal;
+    }
+
+    .solution::before {
+        content: "Solution. ";
+        font-weight: 600;
+        font-style: normal;
+    }
+
+    .proof::after, .solution::after {
+        content: "∎";
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.75rem;
+        font-size: 1.1em;
+        font-style: normal;
+    }
 </style>
