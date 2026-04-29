@@ -11,8 +11,8 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
 let data: BifrostChartData | null = null;
 if (sbUrl && sbKey) {
   try {
-    const rows = await fetchRows(sbUrl, sbKey, 5);
-    if (rows.length > 0) data = processRows(rows, 5);
+    const rows = await fetchRows(sbUrl, sbKey, 1);
+    if (rows.length > 0) data = processRows(rows, 1);
   } catch {}
 }
 
@@ -195,9 +195,9 @@ function fmt(n: number): string {
     </div>
     <div class="bf-controls">
       <div class="bf-range-group">
-        <button class="bf-range-btn" data-hours="1">1h</button>
+        <button class="bf-range-btn active" data-hours="1">1h</button>
         <button class="bf-range-btn" data-hours="3">3h</button>
-        <button class="bf-range-btn active" data-hours="5">5h</button>
+        <button class="bf-range-btn" data-hours="5">5h</button>
         <button class="bf-range-btn" data-hours="24">24h</button>
       </div>
       <div class="bf-tab-group">
@@ -240,7 +240,7 @@ function fmt(n: number): string {
   // ── State ────────────────────────────────────────────────────
 
   let currentTab = "tokens";
-  let currentHours = 5;
+  let currentHours = 1;
   let chartData: BifrostChartData | null = null;
   let loading = false;
 

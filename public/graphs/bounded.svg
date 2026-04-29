@@ -1,0 +1,10 @@
+<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;">
+  <line x1="40" y1="170" x2="280" y2="170" stroke="#525252" stroke-width="1.5"/>
+  <line x1="40" y1="170" x2="40" y2="20" stroke="#525252" stroke-width="1.5"/>
+  <text x="160" y="195" text-anchor="middle" fill="#a3a3a3" font-size="12" font-family="ui-monospace,monospace">time</text>
+  <text x="18" y="95" text-anchor="middle" fill="#a3a3a3" font-size="12" font-family="ui-monospace,monospace" transform="rotate(-90 18 95)">LTV</text>
+  <path d="M40,140 Q90,80 140,65 Q190,55 230,58 L270,60" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="160" y="16" text-anchor="middle" fill="#ef4444" font-size="13" font-weight="600" font-family="ui-monospace,monospace">Bounded</text>
+  <line x1="40" y1="60" x2="280" y2="60" stroke="#525252" stroke-width="0.5" stroke-dasharray="4 4"/>
+  <text x="285" y="64" fill="#525252" font-size="10" font-family="ui-monospace,monospace">LTVₘₐₓ</text>
+</svg>
