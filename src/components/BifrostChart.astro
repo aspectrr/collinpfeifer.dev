@@ -1,0 +1,797 @@
+---
+import {
+  fetchRows,
+  processRows,
+  type BifrostChartData,
+} from "./bifrost-chart-data";
+
+const sbUrl = import.meta.env.SUPABASE_ENDPOINT;
+const sbKey = import.meta.env.SUPABASE_ANON_KEY;
+
+let data: BifrostChartData | null = null;
+if (sbUrl && sbKey) {
+  try {
+    const rows = await fetchRows(sbUrl, sbKey, 5);
+    if (rows.length > 0) data = processRows(rows, 5);
+  } catch {}
+}
+
+function fmt(n: number): string {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  if (n < 0.001 && n > 0) return n.toExponential(1);
+  return Math.round(n).toString();
+}
+---
+
+<style>
+  .bf-wrap {
+    margin-top: 2rem;
+    padding: 1.25rem;
+    border: 1px solid #262626;
+    border-radius: 0.5rem;
+    background: rgba(23, 23, 23, 0.5);
+  }
+  .bf-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .bf-title {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.75rem;
+    color: #737373;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .bf-stats {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .bf-stat-val {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.875rem;
+    color: #a3a3a3;
+  }
+  .bf-stat-lbl {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.625rem;
+    color: #525252;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .bf-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1a1a1a;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+  .bf-range-group,
+  .bf-tab-group {
+    display: flex;
+    gap: 0;
+  }
+  .bf-range-btn,
+  .bf-tab-btn {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.7rem;
+    color: #525252;
+    padding: 0.375rem 0.75rem;
+    cursor: pointer;
+    border: none;
+    background: none;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .bf-range-btn:hover,
+  .bf-tab-btn:hover {
+    color: #a3a3a3;
+  }
+  .bf-range-btn.active,
+  .bf-tab-btn.active {
+    color: #a3a3a3;
+  }
+  .bf-range-btn.active {
+    border-bottom-color: #34d399;
+  }
+  .bf-tab-btn.active {
+    border-bottom-color: #60a5fa;
+  }
+  .bf-chart-area {
+    position: relative;
+  }
+  .bf-canvas {
+    width: 100%;
+    display: block;
+  }
+  .bf-tooltip {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    background: rgba(10, 10, 10, 0.92);
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    color: #a3a3a3;
+    white-space: nowrap;
+    z-index: 10;
+    backdrop-filter: blur(4px);
+  }
+  .bf-tooltip.visible {
+    opacity: 1;
+  }
+  .bf-tooltip-time {
+    color: #737373;
+    font-size: 10px;
+    margin-bottom: 5px;
+    letter-spacing: 0.03em;
+  }
+  .bf-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 1.5px 0;
+  }
+  .bf-tooltip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .bf-tooltip-label {
+    color: #737373;
+    flex: 1;
+  }
+  .bf-tooltip-value {
+    color: #d4d4d4;
+    font-weight: 500;
+  }
+  .bf-empty {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.7rem;
+    color: #525252;
+    padding: 2rem;
+    text-align: center;
+  }
+</style>
+
+{sbUrl && sbKey ? (
+  <div
+    class="bf-wrap"
+    id="bf-root"
+    data-sb-url={sbUrl}
+    data-sb-key={sbKey}
+  >
+    <div class="bf-header">
+      <span class="bf-title">Bifrost Gateway</span>
+      <div class="bf-stats" id="bf-stats">
+        <div>
+          <div class="bf-stat-val" id="bf-stat-tokens">
+            {data ? fmt(data.summary.totals.inputTokens + data.summary.totals.outputTokens) : "—"}
+          </div>
+          <div class="bf-stat-lbl">tokens</div>
+        </div>
+        <div>
+          <div class="bf-stat-val" id="bf-stat-reqs">
+            {data ? data.summary.totals.totalRequests : "—"}
+          </div>
+          <div class="bf-stat-lbl">requests</div>
+        </div>
+        <div>
+          <div class="bf-stat-val" id="bf-stat-models">
+            {data ? data.summary.totals.models : "—"}
+          </div>
+          <div class="bf-stat-lbl">models</div>
+        </div>
+      </div>
+    </div>
+    <div class="bf-controls">
+      <div class="bf-range-group">
+        <button class="bf-range-btn" data-hours="1">1h</button>
+        <button class="bf-range-btn" data-hours="3">3h</button>
+        <button class="bf-range-btn active" data-hours="5">5h</button>
+        <button class="bf-range-btn" data-hours="24">24h</button>
+      </div>
+      <div class="bf-tab-group">
+        <button class="bf-tab-btn active" data-tab="tokens">Tokens</button>
+        <button class="bf-tab-btn" data-tab="requests">Requests</button>
+        <button class="bf-tab-btn" data-tab="latency">Latency</button>
+      </div>
+    </div>
+    <div class="bf-chart-area">
+      <canvas
+        class="bf-canvas"
+        id="bf-canvas"
+        height="0"
+        data-payload={data ? JSON.stringify(data) : ""}
+      />
+      <div class="bf-tooltip" id="bf-tooltip"></div>
+    </div>
+  </div>
+) : (
+  <div class="bf-wrap">
+    <div class="bf-empty">No gateway data available</div>
+  </div>
+)}
+
+<script>
+  import {
+    processRows,
+    fetchRows,
+    type BifrostChartData,
+  } from "./bifrost-chart-data";
+
+  const canvas = document.getElementById("bf-canvas") as HTMLCanvasElement;
+  const root = document.getElementById("bf-root") as HTMLDivElement;
+  const tooltip = document.getElementById("bf-tooltip") as HTMLDivElement;
+  if (!canvas || !root || !tooltip) throw new Error("Bifrost chart elements not found");
+
+  const sbUrl = root.dataset.sbUrl || "";
+  const sbKey = root.dataset.sbKey || "";
+
+  // ── State ────────────────────────────────────────────────────
+
+  let currentTab = "tokens";
+  let currentHours = 5;
+  let chartData: BifrostChartData | null = null;
+  let loading = false;
+
+  const rawPayload = canvas.dataset.payload || "";
+  if (rawPayload) {
+    try { chartData = JSON.parse(rawPayload); } catch {}
+  }
+
+  // Stored render state for hover hit-testing
+  interface RenderState {
+    pad: { top: number; right: number; bottom: number; left: number };
+    minTime: number;
+    maxTime: number;
+    yMax: number;
+    series: { label: string; color: string; points: [number, number][] }[];
+    chartW: number;
+    chartH: number;
+  }
+  let renderState: RenderState | null = null;
+
+  // ── Colors ───────────────────────────────────────────────────
+
+  const MODEL_COLORS = [
+    "#60a5fa", "#34d399", "#fbbf24", "#f87171",
+    "#a78bfa", "#22d3ee", "#fb923c", "#f472b6",
+    "#818cf8", "#4ade80", "#facc15", "#f97316",
+  ];
+
+  // ── Formatters ───────────────────────────────────────────────
+
+  function fmt(n: number): string {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+    if (n < 0.001 && n > 0) return n.toExponential(1);
+    return Math.round(n).toString();
+  }
+
+  function fmtMs(ms: number): string {
+    if (ms >= 60000) return (ms / 60000).toFixed(1) + "m";
+    if (ms >= 1000) return (ms / 1000).toFixed(1) + "s";
+    return Math.round(ms) + "ms";
+  }
+
+  function fmtModelName(name: string): string {
+    return name
+      .replace("anthropic/", "").replace("openai/", "")
+      .replace("google/", "").replace("meta-llama/", "")
+      .replace("qwen/", "").replace("poolside/", "");
+  }
+
+  function formatTimeTick(ts: number): string {
+    const d = new Date(ts);
+    return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+  }
+
+  function formatTooltipTime(ts: number): string {
+    const d = new Date(ts);
+    return d.getHours().toString().padStart(2, "0") + ":"
+      + d.getMinutes().toString().padStart(2, "0") + ":"
+      + d.getSeconds().toString().padStart(2, "0");
+  }
+
+  // ── Nice axis scale ──────────────────────────────────────────
+
+  function niceNum(range: number, round: boolean): number {
+    if (range <= 0) return 1;
+    const exponent = Math.floor(Math.log10(range));
+    const fraction = range / Math.pow(10, exponent);
+    let nice: number;
+    if (round) {
+      if (fraction < 1.5) nice = 1;
+      else if (fraction < 3) nice = 2;
+      else if (fraction < 7) nice = 5;
+      else nice = 10;
+    } else {
+      if (fraction <= 1) nice = 1;
+      else if (fraction <= 2) nice = 2;
+      else if (fraction <= 5) nice = 5;
+      else nice = 10;
+    }
+    return nice * Math.pow(10, exponent);
+  }
+
+  function niceScale(maxVal: number, maxTicks: number = 5): number[] {
+    if (maxVal <= 0) return [0];
+    const range = niceNum(maxVal, false);
+    const tickSpacing = niceNum(range / (maxTicks - 1), true);
+    const ticks: number[] = [];
+    for (let v = 0; v <= maxVal + tickSpacing * 0.5; v += tickSpacing) {
+      ticks.push(Math.round(v * 1e10) / 1e10);
+    }
+    return ticks;
+  }
+
+  function getXAxisTicks(minTime: number, maxTime: number, hours: number): number[] {
+    const ms = 60000;
+    let interval: number;
+    if (hours <= 1) interval = 10 * ms;
+    else if (hours <= 3) interval = 30 * ms;
+    else if (hours <= 5) interval = 60 * ms;
+    else interval = 3 * 60 * ms;
+    const ticks: number[] = [];
+    const start = Math.ceil(minTime / interval) * interval;
+    for (let t = start; t <= maxTime; t += interval) ticks.push(t);
+    return ticks;
+  }
+
+  // ── Formatters per tab ───────────────────────────────────────
+
+  function getFmtY(): (v: number) => string {
+    switch (currentTab) {
+      case "requests": return (v: number) => Math.round(v).toString();
+      case "latency": return fmtMs;
+      default: return fmt;
+    }
+  }
+
+  function getNoDataMsg(): string {
+    switch (currentTab) {
+      case "tokens": return "No token data";
+      case "requests": return "No request data";
+      case "latency": return "No latency data";
+      default: return "No data";
+    }
+  }
+
+  // ── Line chart drawing ───────────────────────────────────────
+
+  function drawLineChart(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    opts: {
+      allSeries: { label: string; color: string; points: [number, number][] }[];
+      fmtY: (v: number) => string;
+      hours: number;
+      noDataMsg?: string;
+    },
+  ) {
+    const { allSeries, fmtY, hours, noDataMsg } = opts;
+    const series = allSeries.filter((s) => s.points.length > 0);
+
+    if (series.length === 0) {
+      renderState = null;
+      ctx.fillStyle = "#525252";
+      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(noDataMsg || "No data available", w / 2, h / 2);
+      return;
+    }
+
+    const pad = { top: 32, right: 16, bottom: 32, left: 64 };
+    const chartW = w - pad.left - pad.right;
+    const chartH = h - pad.top - pad.bottom;
+
+    let minTime = Infinity, maxTime = -Infinity, maxVal = 0;
+    for (const s of series) {
+      for (const [t, v] of s.points) {
+        if (t < minTime) minTime = t;
+        if (t > maxTime) maxTime = t;
+        if (v > maxVal) maxVal = v;
+      }
+    }
+    const timeRange = maxTime - minTime || 60000;
+    const yTicks = niceScale(maxVal, 5);
+    const yMax = yTicks[yTicks.length - 1] || 1;
+    const xTicks = getXAxisTicks(minTime, maxTime, hours);
+
+    // Store for hover
+    renderState = { pad, minTime, maxTime, yMax, series, chartW, chartH };
+
+    const toX = (t: number) => pad.left + ((t - minTime) / timeRange) * chartW;
+    const toY = (v: number) => pad.top + chartH - (v / yMax) * chartH;
+
+    // Horizontal grid
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 1;
+    for (const tick of yTicks) {
+      const y = Math.round(toY(tick)) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(pad.left + chartW, y);
+      ctx.stroke();
+    }
+
+    // Y labels
+    ctx.fillStyle = "#525252";
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (const tick of yTicks) {
+      ctx.fillText(fmtY(tick), pad.left - 8, toY(tick));
+    }
+
+    // Vertical grid + X labels
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (const tick of xTicks) {
+      const x = toX(tick);
+      if (x >= pad.left - 5 && x <= pad.left + chartW + 5) {
+        ctx.strokeStyle = "#1a1a1a";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x) + 0.5, pad.top);
+        ctx.lineTo(Math.round(x) + 0.5, pad.top + chartH);
+        ctx.stroke();
+        ctx.fillStyle = "#525252";
+        ctx.fillText(formatTimeTick(tick), x, pad.top + chartH + 8);
+      }
+    }
+
+    // Area fills
+    const chartBottom = pad.top + chartH;
+    for (const s of series) {
+      if (s.points.length < 2) continue;
+      ctx.beginPath();
+      for (let i = 0; i < s.points.length; i++) {
+        const x = toX(s.points[i][0]);
+        const y = toY(s.points[i][1]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.lineTo(toX(s.points[s.points.length - 1][0]), chartBottom);
+      ctx.lineTo(toX(s.points[0][0]), chartBottom);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, pad.top, 0, chartBottom);
+      grad.addColorStop(0, s.color + "25");
+      grad.addColorStop(1, s.color + "03");
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Lines
+    for (const s of series) {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      for (let i = 0; i < s.points.length; i++) {
+        const x = toX(s.points[i][0]);
+        const y = toY(s.points[i][1]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Legend
+    drawLegend(ctx, series, pad.left, 4);
+  }
+
+  function drawLegend(
+    ctx: CanvasRenderingContext2D,
+    series: { label: string; color: string }[],
+    startX: number,
+    y: number,
+  ) {
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    let x = startX;
+    for (const s of series) {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y + 6);
+      ctx.lineTo(x + 14, y + 6);
+      ctx.stroke();
+      ctx.fillStyle = "#737373";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const name = fmtModelName(s.label);
+      ctx.fillText(name, x + 18, y + 6);
+      x += ctx.measureText(name).width + 36;
+    }
+  }
+
+  // ── Hover overlay (crosshair + dots) ─────────────────────────
+
+  function drawHover(mouseX: number) {
+    if (!renderState || !canvas) return;
+    const rs = renderState;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext("2d")!;
+    const cssW = rect.width;
+    const cssH = 280;
+
+    // Redraw chart
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+    renderBase(ctx, cssW, cssH);
+
+    const { pad, minTime, maxTime, yMax, series, chartW, chartH } = rs;
+    const timeRange = maxTime - minTime || 60000;
+    const toX = (t: number) => pad.left + ((t - minTime) / timeRange) * chartW;
+    const toY = (v: number) => pad.top + chartH - (v / yMax) * chartH;
+
+    // Only draw if mouse is within chart area
+    if (mouseX < pad.left || mouseX > pad.left + chartW) return;
+
+    // Vertical crosshair line
+    ctx.strokeStyle = "#ffffff18";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(mouseX) + 0.5, pad.top);
+    ctx.lineTo(Math.round(mouseX) + 0.5, pad.top + chartH);
+    ctx.stroke();
+
+    // Dots on each series at the nearest point
+    const fmtY = getFmtY();
+    for (const s of series) {
+      // Find nearest point by x-distance
+      let nearest = s.points[0];
+      let bestDist = Infinity;
+      for (const p of s.points) {
+        const dist = Math.abs(toX(p[0]) - mouseX);
+        if (dist < bestDist) {
+          bestDist = dist;
+          nearest = p;
+        }
+      }
+      if (bestDist > chartW) continue;
+
+      const px = toX(nearest[0]);
+      const py = toY(nearest[1]);
+
+      // Outer glow
+      ctx.fillStyle = s.color + "40";
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner dot
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Re-render the base chart without hover overlay
+  function renderBase(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    if (!chartData) {
+      ctx.fillStyle = "#525252";
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("No data available", w / 2, h / 2);
+      return;
+    }
+
+    const models = chartData.summary.models;
+    const metricSeries = chartData.series[currentTab as keyof typeof chartData.series] || {};
+    const allSeries = models.map((m, i) => ({
+      label: m.model,
+      color: MODEL_COLORS[i % MODEL_COLORS.length],
+      points: metricSeries[m.model] || [],
+    }));
+
+    drawLineChart(ctx, w, h, {
+      allSeries,
+      fmtY: getFmtY(),
+      hours: chartData.hours,
+      noDataMsg: getNoDataMsg(),
+    });
+  }
+
+  // ── Tooltip (HTML overlay) ───────────────────────────────────
+
+  function showTooltip(mouseX: number, mouseY: number) {
+    if (!renderState) { tooltip.classList.remove("visible"); return; }
+
+    const rs = renderState;
+    const { pad, minTime, maxTime, yMax, series, chartW } = rs;
+    const timeRange = maxTime - minTime || 60000;
+    const toX = (t: number) => pad.left + ((t - minTime) / timeRange) * chartW;
+
+    if (mouseX < pad.left || mouseX > pad.left + chartW) {
+      tooltip.classList.remove("visible");
+      return;
+    }
+
+    // Find the hover time
+    const hoverTime = minTime + ((mouseX - pad.left) / chartW) * timeRange;
+
+    // Find nearest point per series
+    const fmtY = getFmtY();
+    const rows: { label: string; color: string; value: string }[] = [];
+    let snapTime = hoverTime;
+
+    for (const s of series) {
+      let nearest = s.points[0];
+      let bestDist = Infinity;
+      for (const p of s.points) {
+        const dist = Math.abs(p[0] - hoverTime);
+        if (dist < bestDist) {
+          bestDist = dist;
+          nearest = p;
+        }
+      }
+      if (bestDist < timeRange) {
+        snapTime = nearest[0]; // snap to last found
+        rows.push({
+          label: fmtModelName(s.label),
+          color: s.color,
+          value: fmtY(nearest[1]),
+        });
+      }
+    }
+
+    if (rows.length === 0) {
+      tooltip.classList.remove("visible");
+      return;
+    }
+
+    // Build tooltip HTML
+    let html = `<div class="bf-tooltip-time">${formatTooltipTime(snapTime)}</div>`;
+    for (const r of rows) {
+      html += `<div class="bf-tooltip-row">`
+        + `<span class="bf-tooltip-dot" style="background:${r.color}"></span>`
+        + `<span class="bf-tooltip-label">${r.label}</span>`
+        + `<span class="bf-tooltip-value">${r.value}</span>`
+        + `</div>`;
+    }
+    tooltip.innerHTML = html;
+
+    // Position: prefer right of cursor, flip left if overflowing
+    const wrap = canvas.parentElement!;
+    const wrapRect = wrap.getBoundingClientRect();
+    const ttW = tooltip.offsetWidth;
+    const ttH = tooltip.offsetHeight;
+    let left = mouseX + 12;
+    let top = mouseY - ttH / 2;
+
+    if (left + ttW > wrapRect.width - 8) left = mouseX - ttW - 12;
+    if (top < 0) top = 4;
+    if (top + ttH > 280) top = 280 - ttH - 4;
+
+    tooltip.style.left = left + "px";
+    tooltip.style.top = top + "px";
+    tooltip.classList.add("visible");
+  }
+
+  function hideTooltip() {
+    tooltip.classList.remove("visible");
+  }
+
+  // ── Stats update ─────────────────────────────────────────────
+
+  function updateStats() {
+    if (!chartData) return;
+    const t = chartData.summary.totals;
+    const el = (id: string) => document.getElementById(id);
+    const tokensEl = el("bf-stat-tokens");
+    const reqsEl = el("bf-stat-reqs");
+    const modelsEl = el("bf-stat-models");
+    if (tokensEl) tokensEl.textContent = fmt(t.inputTokens + t.outputTokens);
+    if (reqsEl) reqsEl.textContent = t.totalRequests.toString();
+    if (modelsEl) modelsEl.textContent = t.models.toString();
+  }
+
+  // ── Main render ──────────────────────────────────────────────
+
+  function render() {
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0) { requestAnimationFrame(render); return; }
+
+    const height = 280;
+    canvas.width = rect.width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.height = height + "px";
+    const ctx = canvas.getContext("2d")!;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (loading) {
+      renderState = null;
+      ctx.fillStyle = "#525252";
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Loading...", rect.width / 2, height / 2);
+      return;
+    }
+
+    renderBase(ctx, rect.width, height);
+  }
+
+  // ── Data fetching ────────────────────────────────────────────
+
+  async function refreshData(hours: number) {
+    loading = true;
+    render();
+    try {
+      const rows = await fetchRows(sbUrl, sbKey, hours);
+      chartData = rows.length > 0 ? processRows(rows, hours) : null;
+    } catch {
+      chartData = null;
+    }
+    loading = false;
+    updateStats();
+    render();
+  }
+
+  // ── Mouse events ─────────────────────────────────────────────
+
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    drawHover(mouseX);
+    showTooltip(mouseX, mouseY);
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    hideTooltip();
+    render(); // clear hover overlay
+  });
+
+  // ── Button events ────────────────────────────────────────────
+
+  root.querySelectorAll("[data-hours]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const hours = parseInt((btn as HTMLElement).dataset.hours || "5");
+      if (hours === currentHours && chartData) return;
+      currentHours = hours;
+      root!.querySelectorAll("[data-hours]").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      await refreshData(hours);
+    });
+  });
+
+  root.querySelectorAll("[data-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentTab = (btn as HTMLElement).dataset.tab || "tokens";
+      root!.querySelectorAll("[data-tab]").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      render();
+    });
+  });
+
+  // ── Init ─────────────────────────────────────────────────────
+
+  updateStats();
+  render();
+  window.addEventListener("resize", render);
+</script>
