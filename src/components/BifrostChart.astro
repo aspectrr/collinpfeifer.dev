@@ -1,27 +1,6 @@
 ---
-import {
-  fetchRows,
-  processRows,
-  type BifrostChartData,
-} from "./bifrost-chart-data";
-
 const sbUrl = import.meta.env.SUPABASE_ENDPOINT;
 const sbKey = import.meta.env.SUPABASE_ANON_KEY;
-
-let data: BifrostChartData | null = null;
-if (sbUrl && sbKey) {
-  try {
-    const rows = await fetchRows(sbUrl, sbKey, 1);
-    if (rows.length > 0) data = processRows(rows, 1);
-  } catch {}
-}
-
-function fmt(n: number): string {
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
-  if (n < 0.001 && n > 0) return n.toExponential(1);
-  return Math.round(n).toString();
-}
 ---
 
 <style>
@@ -109,6 +88,18 @@ function fmt(n: number): string {
     width: 100%;
     display: block;
   }
+
+  .bf-empty {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.7rem;
+    color: #525252;
+    padding: 2rem;
+    text-align: center;
+  }
+</style>
+
+<!-- Global styles for tooltip elements created via innerHTML (Astro scoping won't reach them) -->
+<style is:global>
   .bf-tooltip {
     position: absolute;
     pointer-events: none;
@@ -153,13 +144,7 @@ function fmt(n: number): string {
   .bf-tooltip-value {
     color: #d4d4d4;
     font-weight: 500;
-  }
-  .bf-empty {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 0.7rem;
-    color: #525252;
-    padding: 2rem;
-    text-align: center;
+    margin-left: 12px;
   }
 </style>
 
@@ -174,21 +159,15 @@ function fmt(n: number): string {
       <span class="bf-title">Bifrost Gateway</span>
       <div class="bf-stats" id="bf-stats">
         <div>
-          <div class="bf-stat-val" id="bf-stat-tokens">
-            {data ? fmt(data.summary.totals.inputTokens + data.summary.totals.outputTokens) : "—"}
-          </div>
+          <div class="bf-stat-val" id="bf-stat-tokens">—</div>
           <div class="bf-stat-lbl">tokens</div>
         </div>
         <div>
-          <div class="bf-stat-val" id="bf-stat-reqs">
-            {data ? data.summary.totals.totalRequests : "—"}
-          </div>
+          <div class="bf-stat-val" id="bf-stat-reqs">—</div>
           <div class="bf-stat-lbl">requests</div>
         </div>
         <div>
-          <div class="bf-stat-val" id="bf-stat-models">
-            {data ? data.summary.totals.models : "—"}
-          </div>
+          <div class="bf-stat-val" id="bf-stat-models">—</div>
           <div class="bf-stat-lbl">models</div>
         </div>
       </div>
@@ -211,7 +190,7 @@ function fmt(n: number): string {
         class="bf-canvas"
         id="bf-canvas"
         height="0"
-        data-payload={data ? JSON.stringify(data) : ""}
+        data-payload=""
       />
       <div class="bf-tooltip" id="bf-tooltip"></div>
     </div>
@@ -244,10 +223,7 @@ function fmt(n: number): string {
   let chartData: BifrostChartData | null = null;
   let loading = false;
 
-  const rawPayload = canvas.dataset.payload || "";
-  if (rawPayload) {
-    try { chartData = JSON.parse(rawPayload); } catch {}
-  }
+  // No SSR data — always fetch fresh on load
 
   // Stored render state for hover hit-testing
   interface RenderState {
@@ -288,7 +264,8 @@ function fmt(n: number): string {
     return name
       .replace("anthropic/", "").replace("openai/", "")
       .replace("google/", "").replace("meta-llama/", "")
-      .replace("qwen/", "").replace("poolside/", "");
+      .replace("qwen/", "").replace("poolside/", "")
+      .replace(/[-_](\d{6,})$/, " $1"); // space before version/date stamp
   }
 
   function formatTimeTick(ts: number): string {
@@ -407,7 +384,7 @@ function fmt(n: number): string {
     }
     const timeRange = maxTime - minTime || 60000;
     const yTicks = niceScale(maxVal, 5);
-    const yMax = yTicks[yTicks.length - 1] || 1;
+    const yMax = (yTicks[yTicks.length - 1] || 1) * 1.10; // 10% headroom so spikes don't clip
     const xTicks = getXAxisTicks(minTime, maxTime, hours);
 
     // Store for hover
@@ -566,7 +543,7 @@ function fmt(n: number): string {
           nearest = p;
         }
       }
-      if (bestDist > chartW) continue;
+      if (bestDist > chartW || nearest[1] <= 0) continue;
 
       const px = toX(nearest[0]);
       const py = toY(nearest[1]);
@@ -645,7 +622,7 @@ function fmt(n: number): string {
           nearest = p;
         }
       }
-      if (bestDist < timeRange) {
+      if (bestDist < timeRange && nearest[1] > 0) {
         snapTime = nearest[0]; // snap to last found
         rows.push({
           label: fmtModelName(s.label),
@@ -772,7 +749,11 @@ function fmt(n: number): string {
   root.querySelectorAll("[data-hours]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const hours = parseInt((btn as HTMLElement).dataset.hours || "5");
-      if (hours === currentHours && chartData) return;
+      if (hours === currentHours && chartData) {
+        // always re-fetch even if same timeframe (data may be stale)
+        await refreshData(hours);
+        return;
+      }
       currentHours = hours;
       root!.querySelectorAll("[data-hours]").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
@@ -793,5 +774,7 @@ function fmt(n: number): string {
 
   updateStats();
   render();
+  // Always fetch fresh data on page load
+  refreshData(currentHours);
   window.addEventListener("resize", render);
 </script>
