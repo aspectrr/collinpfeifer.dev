@@ -370,7 +370,22 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       return;
     }
 
-    const pad = { top: 32, right: 16, bottom: 32, left: 64 };
+    // Pre-calculate legend rows to determine top padding
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    const legendStartX = 64;
+    const legendMaxW = w - 16;
+    let legendRowCount = 1;
+    let lx = legendStartX;
+    for (const s of series) {
+      const name = fmtModelName(s.label);
+      const itemW = ctx.measureText(name).width + 36;
+      if (lx + itemW > legendMaxW && lx > legendStartX) {
+        legendRowCount++;
+        lx = legendStartX;
+      }
+      lx += itemW;
+    }
+    const pad = { top: 12 + legendRowCount * 16, right: 16, bottom: 32, left: 64 };
     const chartW = w - pad.left - pad.right;
     const chartH = h - pad.top - pad.bottom;
 
@@ -470,7 +485,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     }
 
     // Legend
-    drawLegend(ctx, series, pad.left, 4);
+    drawLegend(ctx, series, pad.left, 4, legendMaxW);
   }
 
   function drawLegend(
@@ -478,22 +493,31 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     series: { label: string; color: string }[],
     startX: number,
     y: number,
+    maxWidth: number,
   ) {
     ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
     let x = startX;
+    let row = 0;
+    const rowH = 16;
     for (const s of series) {
+      const name = fmtModelName(s.label);
+      const itemW = ctx.measureText(name).width + 36;
+      if (x + itemW > maxWidth && x > startX) {
+        row++;
+        x = startX;
+      }
+      const cy = y + row * rowH;
       ctx.strokeStyle = s.color;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(x, y + 6);
-      ctx.lineTo(x + 14, y + 6);
+      ctx.moveTo(x, cy + 6);
+      ctx.lineTo(x + 14, cy + 6);
       ctx.stroke();
       ctx.fillStyle = "#737373";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      const name = fmtModelName(s.label);
-      ctx.fillText(name, x + 18, y + 6);
-      x += ctx.measureText(name).width + 36;
+      ctx.fillText(name, x + 18, cy + 6);
+      x += itemW;
     }
   }
 
