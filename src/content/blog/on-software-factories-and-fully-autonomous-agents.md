@@ -1,7 +1,7 @@
 ---
 title: "On Software Factories and Fully Autonomous Agents"
 pubDate: 2026-05-11
-draft: false
+draft: true
 ---
 
 I think there's a fundamental misunderstanding about where AI agents are headed. Most people are still thinking in terms of local agents that help you when you get stuck. But they're missing the end-goal: fully autonomous agents running in the cloud, pulling tickets from Linear, creating pull requests, and operating with minimal human oversight. Like truly autonomous.
