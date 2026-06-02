@@ -168,7 +168,58 @@ export function processRows(
 		series.cost[model] = [];
 	}
 
-	const sortedMinutes = [...minuteBuckets.keys()].sort((a, b) => a - b);
+  const sortedMinutes = [...minuteBuckets.keys()].sort((a, b) => a - b);
+
+  // Build actual data points per minute/model
+  const actualData = new Map<
+    string,
+    Map<
+      number,
+      { tokens: number; requests: number; latency: number; cost: number }
+    >
+  >();
+  for (const model of models) actualData.set(model, new Map());
+
+  for (const minuteTs of sortedMinutes) {
+    const minuteMap = minuteBuckets.get(minuteTs)!;
+    for (const model of models) {
+      const b = minuteMap.get(model);
+      const entry = {
+        tokens: b ? b.inputTokens + b.outputTokens : 0,
+        requests: b ? b.requests : 0,
+        latency:
+          b && b.latencyCount > 0 ? b.latencySum / b.latencyCount : 0,
+        cost: b ? b.cost : 0,
+      };
+      actualData.get(model)!.set(minuteTs, entry);
+    }
+  }
+
+  // Fill every minute in the range for every model (0s where no data)
+  if (sortedMinutes.length > 0) {
+    const firstMinute = sortedMinutes[0];
+    const lastMinute = sortedMinutes[sortedMinutes.length - 1];
+
+    for (const model of models) {
+      const modelData = actualData.get(model)!;
+      series.tokens[model] = [];
+      series.requests[model] = [];
+      series.latency[model] = [];
+      series.cost[model] = [];
+
+      for (let t = firstMinute; t <= lastMinute; t += 60_000) {
+        const entry = modelData.get(t);
+        const tokens = entry?.tokens ?? 0;
+        const requests = entry?.requests ?? 0;
+        const latency = entry?.latency ?? 0;
+        const cost = entry?.cost ?? 0;
+        series.tokens[model].push([t, tokens]);
+        series.requests[model].push([t, requests]);
+        series.latency[model].push([t, latency]);
+        series.cost[model].push([t, cost]);
+      }
+    }
+  }
 
 	// Build actual data points per minute/model
 	const actualData = new Map<
