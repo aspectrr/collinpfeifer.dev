@@ -1,7 +1,7 @@
 ---
 title: "On Clones for Agents"
 pubDate: 2026-05-15
-draft: false
+draft: true
 ---
 
 ## On Clones for Agents
