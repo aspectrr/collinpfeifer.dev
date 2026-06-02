@@ -26,3 +26,5 @@ pnpm-debug.log*
 tsconfig.tsbuildinfo
 .crush.json
 .crush
+.pi
+.pi-lens

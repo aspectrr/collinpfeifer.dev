@@ -178,6 +178,9 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
         <button class="bf-range-btn" data-hours="3">3h</button>
         <button class="bf-range-btn" data-hours="5">5h</button>
         <button class="bf-range-btn" data-hours="24">24h</button>
+        <button class="bf-range-btn" data-hours="168">7d</button>
+        <button class="bf-range-btn" data-hours="336">14d</button>
+        <button class="bf-range-btn" data-hours="720">1m</button>
       </div>
       <div class="bf-tab-group">
         <button class="bf-tab-btn active" data-tab="tokens">Tokens</button>
@@ -205,6 +208,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
   import {
     processRows,
     fetchRows,
+    emptyChartData,
     type BifrostChartData,
   } from "./bifrost-chart-data";
 
@@ -270,11 +274,22 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
 
   function formatTimeTick(ts: number): string {
     const d = new Date(ts);
+    if (currentHours > 24) {
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return months[d.getMonth()] + " " + d.getDate() + " " + d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+    }
     return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
   }
 
   function formatTooltipTime(ts: number): string {
     const d = new Date(ts);
+    if (currentHours > 24) {
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return months[d.getMonth()] + " " + d.getDate() + " "
+        + d.getHours().toString().padStart(2, "0") + ":"
+        + d.getMinutes().toString().padStart(2, "0") + ":"
+        + d.getSeconds().toString().padStart(2, "0");
+    }
     return d.getHours().toString().padStart(2, "0") + ":"
       + d.getMinutes().toString().padStart(2, "0") + ":"
       + d.getSeconds().toString().padStart(2, "0");
@@ -318,7 +333,10 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     if (hours <= 1) interval = 10 * ms;
     else if (hours <= 3) interval = 30 * ms;
     else if (hours <= 5) interval = 60 * ms;
-    else interval = 3 * 60 * ms;
+    else if (hours <= 24) interval = 3 * 60 * ms;
+    else if (hours <= 168) interval = 24 * 60 * ms;       // 7d: daily ticks
+    else if (hours <= 336) interval = 2 * 24 * 60 * ms;   // 14d: every 2 days
+    else interval = 7 * 24 * 60 * ms;                      // 1m: weekly ticks
     const ticks: number[] = [];
     const start = Math.ceil(minTime / interval) * interval;
     for (let t = start; t <= maxTime; t += interval) ticks.push(t);
@@ -362,11 +380,61 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
 
     if (series.length === 0) {
       renderState = null;
+
+      // Draw empty chart with zero line when no models have data
+      const pad = { top: 24, right: 16, bottom: 32, left: 64 };
+      const chartW = w - pad.left - pad.right;
+      const chartH = h - pad.top - pad.bottom;
+      const now = Date.now();
+      const minTime = now - hours * 3600_000;
+      const maxTime = now;
+      const timeRange = maxTime - minTime || 60000;
+
+      const toX = (t: number) => pad.left + ((t - minTime) / timeRange) * chartW;
+      const toY = (_v: number) => pad.top + chartH; // everything is 0
+
+      // Horizontal grid at y=0
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 1;
+      const zeroY = Math.round(pad.top + chartH) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, zeroY);
+      ctx.lineTo(pad.left + chartW, zeroY);
+      ctx.stroke();
+
+      // Y label
       ctx.fillStyle = "#525252";
-      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.textAlign = "center";
+      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      ctx.fillText(noDataMsg || "No data available", w / 2, h / 2);
+      ctx.fillText("0", pad.left - 8, pad.top + chartH);
+
+      // Vertical grid + X labels
+      const xTicks = getXAxisTicks(minTime, maxTime, hours);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (const tick of xTicks) {
+        const x = toX(tick);
+        if (x >= pad.left - 5 && x <= pad.left + chartW + 5) {
+          ctx.strokeStyle = "#1a1a1a";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(Math.round(x) + 0.5, pad.top);
+          ctx.lineTo(Math.round(x) + 0.5, pad.top + chartH);
+          ctx.stroke();
+          ctx.fillStyle = "#525252";
+          ctx.fillText(formatTimeTick(tick), x, pad.top + chartH + 8);
+        }
+      }
+
+      // Zero line (brighter)
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, zeroY);
+      ctx.lineTo(pad.left + chartW, zeroY);
+      ctx.stroke();
+
       return;
     }
 
@@ -589,12 +657,8 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
   // Re-render the base chart without hover overlay
   function renderBase(ctx: CanvasRenderingContext2D, w: number, h: number) {
     if (!chartData) {
-      ctx.fillStyle = "#525252";
-      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("No data available", w / 2, h / 2);
-      return;
+      // Shouldn't happen since refreshData always sets chartData, but just in case
+      chartData = emptyChartData(currentHours);
     }
 
     const models = chartData.summary.models;
@@ -744,7 +808,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     render();
     try {
       const rows = await fetchRows(sbUrl, sbKey, hours);
-      chartData = rows.length > 0 ? processRows(rows, hours) : null;
+      chartData = rows.length > 0 ? processRows(rows, hours) : emptyChartData(hours);
     } catch {
       chartData = null;
     }
