@@ -28,3 +28,7 @@ tsconfig.tsbuildinfo
 .crush
 .pi
 .pi-lens
+
+# Pix Agent
+.pi/
+.pi-lens/
