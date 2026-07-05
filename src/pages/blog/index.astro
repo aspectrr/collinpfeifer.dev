@@ -1,10 +1,33 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
 
-const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
+const allPosts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
+
+// Group series posts, keep standalone posts as-is
+// Use the latest post date in a series for ordering
+const seenSeries = new Set<string>();
+const grouped: Array<{ type: "post"; post: CollectionEntry<"blog"> } | { type: "series"; seriesSlug: string; posts: CollectionEntry<"blog">[] }> = [];
+
+for (const post of allPosts) {
+  if (post.data.series) {
+    if (seenSeries.has(post.data.series)) continue;
+    seenSeries.add(post.data.series);
+    const seriesPosts = allPosts
+      .filter((p) => p.data.series === post.data.series)
+      .sort((a, b) => (a.data.partNumber ?? 0) - (b.data.partNumber ?? 0));
+    grouped.push({ type: "series", seriesSlug: post.data.series, posts: seriesPosts });
+  } else {
+    grouped.push({ type: "post", post });
+  }
+}
+
+function titleCase(slug: string) {
+  return slug.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+}
 ---
 
 <Layout
@@ -55,33 +78,74 @@ const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
 
     <main class="px-6 pb-24 mt-6">
       <div class="mx-auto max-w-2xl space-y-4">
-        {
-          posts.map((post) => (
-            <a
-              href={`/blog/${post.slug}`}
-              class="block p-6 rounded-lg bg-neutral-900/50 border border-neutral-800 hover:border-neutral-600 transition-all duration-300 no-underline hover:no-underline group"
-            >
-              <h3 class="text-xl font-serif italic text-neutral-200 group-hover:text-white transition-colors leading-snug">
-                {post.data.title}
-              </h3>
-              <div class="mt-3 flex items-center gap-3">
-                <time
-                  datetime={post.data.pubDate.toISOString()}
-                  class="text-xs font-mono text-neutral-600"
-                >
-                  {post.data.pubDate.toLocaleDateString("en-us", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </time>
-                {post.data.author && (
-                  <span class="text-xs text-neutral-600">· {post.data.author}</span>
-                )}
+        {grouped.map((item) => {
+          if (item.type === "post") {
+            const post = item.post;
+            return (
+              <a
+                href={`/blog/${post.slug}`}
+                class="block p-6 rounded-lg bg-neutral-900/50 border border-neutral-800 hover:border-neutral-600 transition-all duration-300 no-underline hover:no-underline group"
+              >
+                <h3 class="text-xl font-serif italic text-neutral-200 group-hover:text-white transition-colors leading-snug">
+                  {post.data.title}
+                </h3>
+                <div class="mt-3 flex items-center gap-3">
+                  <time
+                    datetime={post.data.pubDate.toISOString()}
+                    class="text-xs font-mono text-neutral-600"
+                  >
+                    {post.data.pubDate.toLocaleDateString("en-us", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </time>
+                  {post.data.author && (
+                    <span class="text-xs text-neutral-600">· {post.data.author}</span>
+                  )}
+                </div>
+              </a>
+            );
+          }
+
+          const { seriesSlug, posts: seriesPosts } = item;
+          return (
+            <div class="p-6 rounded-lg bg-neutral-900/50 border border-neutral-800">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="text-xs font-mono text-[#228B22] uppercase tracking-wider">Series</span>
+                <h3 class="text-xl font-serif italic text-neutral-200 leading-snug">
+                  {titleCase(seriesSlug)}
+                </h3>
+                <span class="text-xs font-mono text-neutral-600">{seriesPosts.length} part{seriesPosts.length > 1 ? "s" : ""}</span>
               </div>
-            </a>
-          ))
-        }
+              <div class="space-y-2">
+                {seriesPosts.map((sp) => (
+                  <a
+                    href={`/blog/${sp.slug}`}
+                    class="block p-3 rounded-lg border border-neutral-800 hover:border-neutral-600 transition-all duration-300 no-underline hover:no-underline group"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-xs font-mono text-neutral-600">Part {sp.data.partNumber}</span>
+                      <span class="text-sm font-serif italic text-neutral-300 group-hover:text-white transition-colors">
+                        {sp.data.partTitle || sp.data.title}
+                      </span>
+                    </div>
+                    <time
+                      datetime={sp.data.pubDate.toISOString()}
+                      class="mt-1 ml-12 block text-xs font-mono text-neutral-600"
+                    >
+                      {sp.data.pubDate.toLocaleDateString("en-us", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </time>
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </main>
   </div>
