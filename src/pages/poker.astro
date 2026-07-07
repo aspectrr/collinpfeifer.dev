@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import PokerChart from "../components/PokerChart.astro";
+import Header from "../components/Header.astro";
 ---
 
 <Layout
@@ -8,48 +9,10 @@ import PokerChart from "../components/PokerChart.astro";
   description="Live poker graph"
 >
   <div class="min-h-screen text-white bg-black">
-    <header class="relative px-6 py-24 overflow-hidden">
-      <img
-        src="/art/G-fD3zSWMAAv6L4.jpeg"
-        alt=""
-        aria-hidden="true"
-        class="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none"
-        style="mask-image: linear-gradient(to bottom, black 70%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);"
-      />
-      <div class="relative z-10 mx-auto max-w-2xl">
-        <div class="flex justify-between items-center mb-6">
-          <a
-            href="/"
-            class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
-          >
-            Collin Pfeifer
-          </a>
-          <div class="flex gap-6 text-sm font-mono text-neutral-400">
-            <a href="/blog" class="hover:text-neutral-200 transition-colors">blog</a>
-            <a href="/coding-sessions" class="hover:text-neutral-200 transition-colors">sessions</a>
-            <a href="/poker" class="text-neutral-200">poker</a>
-            <a
-              href="https://github.com/aspectrr"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-neutral-200 transition-colors">github</a
-            >
-          </div>
-        </div>
-        <p class="mt-2 text-neutral-400">
-          Craftsman. Working on 🦌 <a
-            href="https://trydeer.sh"
-            target="_blank"
-            class="hover:text-[#228B22] transition-colors"
-            rel="noopener noreferrer"
-          >
-            deer.sh</a
-          >
-        </p>
-        <h2 class="mt-12 text-3xl md:text-4xl font-serif italic text-neutral-200">Poker</h2>
-        <p class="mt-2 text-neutral-500 text-sm">Cumulative net across cash sessions. Pulled from my poker log.</p>
-      </div>
-    </header>
+    <Header active="poker">
+      <h2 class="mt-12 text-3xl md:text-4xl font-serif italic text-neutral-200">Poker</h2>
+      <p class="mt-2 text-neutral-500 text-sm">Cumulative net across cash sessions. Pulled from my poker log.</p>
+    </Header>
 
     <main class="px-6 pb-24 mt-6">
       <div class="mx-auto max-w-2xl">

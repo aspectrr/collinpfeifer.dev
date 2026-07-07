@@ -1,7 +1,7 @@
 ---
 import { type CollectionEntry, getCollection } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
-import { Image } from "astro:assets";
+import Header from "../../components/Header.astro";
 
 export async function getStaticPaths() {
     const posts = await getCollection("blog", ({ data }) => !data.draft);
@@ -32,51 +32,21 @@ if (post.data.series) {
 
 <Layout title={post.data.title}>
     <div class="min-h-screen text-white bg-black">
-        <header class="relative px-6 py-24 overflow-hidden">
-            <Image
-                src="/art/G-fD3zSWMAAv6L4.jpeg"
-                width=100
-                height=100
-                alt=""
-                aria-hidden="true"
-                class="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none"
-                style="mask-image: linear-gradient(to bottom, black 70%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);"
-            />
-            <div class="relative z-10 mx-auto max-w-2xl">
-                <div class="flex justify-between items-center mb-6">
-                    <a
-                        href="/"
-                        class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
-                    >
-                        Collin Pfeifer
-                    </a>
-                    <div class="flex gap-6 text-sm font-mono text-neutral-400">
-                        <a href="/blog" class="hover:text-neutral-200 transition-colors">blog</a>
-                        <a href="/coding-sessions" class="hover:text-neutral-200 transition-colors">sessions</a>
-                        <a
-                            href="https://github.com/aspectrr"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="hover:text-neutral-200 transition-colors">github</a
-                        >
-                    </div>
-                </div>
+        <Header active="blog" tagline={false}>
+            <h1 class="mt-8 text-3xl md:text-5xl font-serif italic text-neutral-100 leading-tight">
+                {post.data.title}
+            </h1>
 
-                <h1 class="mt-8 text-3xl md:text-5xl font-serif italic text-neutral-100 leading-tight">
-                    {post.data.title}
-                </h1>
-
-                <div class="mt-4 text-sm text-neutral-500">
-                    {
-                        post.data.pubDate.toLocaleDateString("en-us", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                        })
-                    }
-                </div>
+            <div class="mt-4 text-sm text-neutral-500">
+                {
+                    post.data.pubDate.toLocaleDateString("en-us", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                    })
+                }
             </div>
-        </header>
+        </Header>
 
         <main class="px-6 pb-24 mt-6">
             <article class="mx-auto max-w-2xl">
