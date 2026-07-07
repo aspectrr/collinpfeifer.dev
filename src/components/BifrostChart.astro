@@ -353,15 +353,6 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     }
   }
 
-  function getNoDataMsg(): string {
-    switch (currentTab) {
-      case "tokens": return "No token data";
-      case "requests": return "No request data";
-      case "latency": return "No latency data";
-      default: return "No data";
-    }
-  }
-
   // ── Line chart drawing ───────────────────────────────────────
 
   function drawLineChart(
@@ -372,10 +363,9 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       allSeries: { label: string; color: string; points: [number, number][] }[];
       fmtY: (v: number) => string;
       hours: number;
-      noDataMsg?: string;
     },
   ) {
-    const { allSeries, fmtY, hours, noDataMsg } = opts;
+    const { allSeries, fmtY, hours } = opts;
     const series = allSeries.filter((s) => s.points.length > 0);
 
     if (series.length === 0) {
@@ -391,7 +381,6 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       const timeRange = maxTime - minTime || 60000;
 
       const toX = (t: number) => pad.left + ((t - minTime) / timeRange) * chartW;
-      const toY = (_v: number) => pad.top + chartH; // everything is 0
 
       // Horizontal grid at y=0
       ctx.strokeStyle = "#1a1a1a";
@@ -623,7 +612,6 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     ctx.stroke();
 
     // Dots on each series at the nearest point
-    const fmtY = getFmtY();
     for (const s of series) {
       // Find nearest point by x-distance
       let nearest = s.points[0];
@@ -673,7 +661,6 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       allSeries,
       fmtY: getFmtY(),
       hours: chartData.hours,
-      noDataMsg: getNoDataMsg(),
     });
   }
 
@@ -683,9 +670,8 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     if (!renderState) { tooltip.classList.remove("visible"); return; }
 
     const rs = renderState;
-    const { pad, minTime, maxTime, yMax, series, chartW } = rs;
+    const { pad, minTime, maxTime, series, chartW } = rs;
     const timeRange = maxTime - minTime || 60000;
-    const toX = (t: number) => pad.left + ((t - minTime) / timeRange) * chartW;
 
     if (mouseX < pad.left || mouseX > pad.left + chartW) {
       tooltip.classList.remove("visible");
