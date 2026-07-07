@@ -10,6 +10,8 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     border: 1px solid #262626;
     border-radius: 0.5rem;
     background: rgba(23, 23, 23, 0.5);
+    min-width: 0;
+    overflow-x: hidden;
   }
   .bf-header {
     display: flex;
@@ -42,8 +44,10 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
   }
   .bf-controls {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
     border-bottom: 1px solid #1a1a1a;
     margin-bottom: 0.75rem;
     padding-bottom: 0.5rem;
@@ -51,7 +55,29 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
   .bf-range-group,
   .bf-tab-group {
     display: flex;
+    flex-wrap: wrap;
     gap: 0;
+    min-width: 0;
+  }
+  @media (max-width: 520px) {
+    .bf-controls {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+    .bf-range-group,
+    .bf-tab-group {
+      gap: 0.25rem;
+    }
+    .bf-range-btn,
+    .bf-tab-btn {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.65rem;
+      min-height: 36px;
+    }
+    .bf-stats {
+      gap: 1rem;
+    }
   }
   .bf-range-btn,
   .bf-tab-btn {
@@ -81,12 +107,36 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
   .bf-tab-btn.active {
     border-bottom-color: #60a5fa;
   }
+  .bf-chart-row {
+    display: flex;
+    flex-direction: column;
+  }
   .bf-chart-area {
     position: relative;
+    order: 1;
   }
   .bf-canvas {
     width: 100%;
     display: block;
+    touch-action: pan-y;
+  }
+  .bf-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    order: 2;
+    margin-top: 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 10px;
+    color: #737373;
+    line-height: 1.4;
+  }
+  @media (min-width: 641px) {
+    .bf-chart-area { order: 2; }
+    .bf-legend { order: 1; margin-top: 0; margin-bottom: 0.5rem; }
+  }
+  @media (max-width: 640px) {
+    .bf-legend { font-size: 9px; gap: 0.3rem 0.6rem; }
   }
 
   .bf-empty {
@@ -100,6 +150,26 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
 
 <!-- Global styles for tooltip elements created via innerHTML (Astro scoping won't reach them) -->
 <style is:global>
+  /* Legend items are created via innerHTML, so they need global (non-scoped) styles. */
+  .bf-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .bf-legend-swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .bf-legend-name {
+    line-height: 1;
+  }
+  @media (max-width: 640px) {
+    .bf-legend-swatch { width: 7px; height: 7px; }
+  }
   .bf-tooltip {
     position: absolute;
     pointer-events: none;
@@ -188,14 +258,17 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
         <button class="bf-tab-btn" data-tab="latency">Latency</button>
       </div>
     </div>
-    <div class="bf-chart-area">
-      <canvas
-        class="bf-canvas"
-        id="bf-canvas"
-        height="0"
-        data-payload=""
-      />
-      <div class="bf-tooltip" id="bf-tooltip"></div>
+    <div class="bf-chart-row">
+      <div class="bf-legend" id="bf-legend"></div>
+      <div class="bf-chart-area">
+        <canvas
+          class="bf-canvas"
+          id="bf-canvas"
+          height="0"
+          data-payload=""
+        />
+        <div class="bf-tooltip" id="bf-tooltip"></div>
+      </div>
     </div>
   </div>
 ) : (
@@ -215,6 +288,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
   const canvas = document.getElementById("bf-canvas") as HTMLCanvasElement;
   const root = document.getElementById("bf-root") as HTMLDivElement;
   const tooltip = document.getElementById("bf-tooltip") as HTMLDivElement;
+  const legendEl = document.getElementById("bf-legend") as HTMLDivElement | null;
   if (!canvas || !root || !tooltip) throw new Error("Bifrost chart elements not found");
 
   const sbUrl = root.dataset.sbUrl || "";
@@ -276,7 +350,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     const d = new Date(ts);
     if (currentHours > 24) {
       const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      return months[d.getMonth()] + " " + d.getDate() + " " + d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+      return months[d.getMonth()] + " " + d.getDate();
     }
     return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
   }
@@ -362,6 +436,45 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     }
   }
 
+  // ── Responsive sizing ─────────────────────────────────────
+
+  function getChartHeight(): number {
+    return window.innerWidth < 640 ? 220 : 280;
+  }
+
+  // ── X axis (grid + labels, with collision avoidance) ─────────
+
+  function drawXAxis(
+    ctx: CanvasRenderingContext2D,
+    xTicks: number[],
+    toX: (t: number) => number,
+    pad: { top: number; left: number },
+    chartW: number,
+    chartH: number,
+    isMobile: boolean,
+  ) {
+    const minGap = isMobile ? 34 : 40;
+    ctx.font = (isMobile ? 9 : 10) + "px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    let lastLabelX = -Infinity;
+    for (const tick of xTicks) {
+      const x = toX(tick);
+      if (x < pad.left - 5 || x > pad.left + chartW + 5) continue;
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x) + 0.5, pad.top);
+      ctx.lineTo(Math.round(x) + 0.5, pad.top + chartH);
+      ctx.stroke();
+      if (x - lastLabelX >= minGap) {
+        ctx.fillStyle = "#525252";
+        ctx.fillText(formatTimeTick(tick), x, pad.top + chartH + 8);
+        lastLabelX = x;
+      }
+    }
+  }
+
   // ── Line chart drawing ───────────────────────────────────────
 
   function drawLineChart(
@@ -382,7 +495,8 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       renderState = null;
 
       // Draw empty chart with zero line when no models have data
-      const pad = { top: 24, right: 16, bottom: 32, left: 64 };
+      const isMobile = w < 640;
+      const pad = { top: 24, right: isMobile ? 12 : 16, bottom: 32, left: isMobile ? 44 : 64 };
       const chartW = w - pad.left - pad.right;
       const chartH = h - pad.top - pad.bottom;
       const now = Date.now();
@@ -411,21 +525,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
 
       // Vertical grid + X labels
       const xTicks = getXAxisTicks(minTime, maxTime, hours);
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      for (const tick of xTicks) {
-        const x = toX(tick);
-        if (x >= pad.left - 5 && x <= pad.left + chartW + 5) {
-          ctx.strokeStyle = "#1a1a1a";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(Math.round(x) + 0.5, pad.top);
-          ctx.lineTo(Math.round(x) + 0.5, pad.top + chartH);
-          ctx.stroke();
-          ctx.fillStyle = "#525252";
-          ctx.fillText(formatTimeTick(tick), x, pad.top + chartH + 8);
-        }
-      }
+      drawXAxis(ctx, xTicks, toX, pad, chartW, chartH, isMobile);
 
       // Zero line (brighter)
       ctx.strokeStyle = "#333";
@@ -438,22 +538,14 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       return;
     }
 
-    // Pre-calculate legend rows to determine top padding
-    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    const legendStartX = 64;
-    const legendMaxW = w - 16;
-    let legendRowCount = 1;
-    let lx = legendStartX;
-    for (const s of series) {
-      const name = fmtModelName(s.label);
-      const itemW = ctx.measureText(name).width + 36;
-      if (lx + itemW > legendMaxW && lx > legendStartX) {
-        legendRowCount++;
-        lx = legendStartX;
-      }
-      lx += itemW;
-    }
-    const pad = { top: 12 + legendRowCount * 16, right: 16, bottom: 32, left: 64 };
+    // Responsive layout: narrower side padding on mobile (legend is HTML, off-canvas)
+    const isMobile = w < 640;
+    const pad = {
+      top: 12,
+      right: isMobile ? 12 : 16,
+      bottom: isMobile ? 28 : 32,
+      left: isMobile ? 44 : 64,
+    };
     const chartW = w - pad.left - pad.right;
     const chartH = h - pad.top - pad.bottom;
 
@@ -497,21 +589,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     }
 
     // Vertical grid + X labels
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    for (const tick of xTicks) {
-      const x = toX(tick);
-      if (x >= pad.left - 5 && x <= pad.left + chartW + 5) {
-        ctx.strokeStyle = "#1a1a1a";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(Math.round(x) + 0.5, pad.top);
-        ctx.lineTo(Math.round(x) + 0.5, pad.top + chartH);
-        ctx.stroke();
-        ctx.fillStyle = "#525252";
-        ctx.fillText(formatTimeTick(tick), x, pad.top + chartH + 8);
-      }
-    }
+    drawXAxis(ctx, xTicks, toX, pad, chartW, chartH, isMobile);
 
     // Area fills
     const chartBottom = pad.top + chartH;
@@ -552,41 +630,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       ctx.globalAlpha = 1;
     }
 
-    // Legend
-    drawLegend(ctx, series, pad.left, 4, legendMaxW);
-  }
-
-  function drawLegend(
-    ctx: CanvasRenderingContext2D,
-    series: { label: string; color: string }[],
-    startX: number,
-    y: number,
-    maxWidth: number,
-  ) {
-    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    let x = startX;
-    let row = 0;
-    const rowH = 16;
-    for (const s of series) {
-      const name = fmtModelName(s.label);
-      const itemW = ctx.measureText(name).width + 36;
-      if (x + itemW > maxWidth && x > startX) {
-        row++;
-        x = startX;
-      }
-      const cy = y + row * rowH;
-      ctx.strokeStyle = s.color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x, cy + 6);
-      ctx.lineTo(x + 14, cy + 6);
-      ctx.stroke();
-      ctx.fillStyle = "#737373";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText(name, x + 18, cy + 6);
-      x += itemW;
-    }
+    // Legend is rendered as HTML (see renderLegendHTML) — nothing to draw on canvas
   }
 
   // ── Hover overlay (crosshair + dots) ─────────────────────────
@@ -598,7 +642,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext("2d")!;
     const cssW = rect.width;
-    const cssH = 280;
+    const cssH = getChartHeight();
 
     // Redraw chart
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -655,6 +699,26 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
   }
 
   // Re-render the base chart without hover overlay
+  // ── Legend (HTML, off-canvas) ───────────────────────────────
+
+  function renderLegendHTML(series: { label: string; color: string }[]) {
+    if (!legendEl) return;
+    if (series.length === 0) {
+      legendEl.style.display = "none";
+      legendEl.innerHTML = "";
+      return;
+    }
+    let html = "";
+    for (const s of series) {
+      html += `<span class="bf-legend-item">`
+        + `<span class="bf-legend-swatch" style="background:${s.color}"></span>`
+        + `<span class="bf-legend-name">${fmtModelName(s.label)}</span>`
+        + `</span>`;
+    }
+    legendEl.innerHTML = html;
+    legendEl.style.display = "";
+  }
+
   function renderBase(ctx: CanvasRenderingContext2D, w: number, h: number) {
     if (!chartData) {
       // Shouldn't happen since refreshData always sets chartData, but just in case
@@ -668,6 +732,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
       color: MODEL_COLORS[i % MODEL_COLORS.length],
       points: metricSeries[m.model] || [],
     }));
+    renderLegendHTML(allSeries.filter((s) => s.points.length > 0));
 
     drawLineChart(ctx, w, h, {
       allSeries,
@@ -746,7 +811,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
 
     if (left + ttW > wrapRect.width - 8) left = mouseX - ttW - 12;
     if (top < 0) top = 4;
-    if (top + ttH > 280) top = 280 - ttH - 4;
+    if (top + ttH > getChartHeight()) top = getChartHeight() - ttH - 4;
 
     tooltip.style.left = left + "px";
     tooltip.style.top = top + "px";
@@ -779,7 +844,7 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0) { requestAnimationFrame(render); return; }
 
-    const height = 280;
+    const height = getChartHeight();
     canvas.width = rect.width * dpr;
     canvas.height = height * dpr;
     canvas.style.height = height + "px";
@@ -831,6 +896,27 @@ const sbKey = import.meta.env.SUPABASE_ANON_KEY;
     hideTooltip();
     render(); // clear hover overlay
   });
+
+  // ── Touch events (mobile tooltip) ────────────────────────────
+  function pointerPos(e: MouseEvent | TouchEvent) {
+    const rect = canvas.getBoundingClientRect();
+    const src = "touches" in e ? e.touches[0] : (e as MouseEvent);
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  }
+  canvas.addEventListener("touchstart", (e) => {
+    const { x, y } = pointerPos(e);
+    drawHover(x);
+    showTooltip(x, y);
+  }, { passive: true });
+  canvas.addEventListener("touchmove", (e) => {
+    const { x, y } = pointerPos(e);
+    drawHover(x);
+    showTooltip(x, y);
+  }, { passive: true });
+  canvas.addEventListener("touchend", () => {
+    hideTooltip();
+    render();
+  }, { passive: true });
 
   // ── Button events ────────────────────────────────────────────
 
