@@ -37,22 +37,25 @@ const nav: Array<{
         style="mask-image: linear-gradient(to bottom, black 70%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);"
     />
     <div class="relative z-10 mx-auto max-w-2xl">
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex justify-between items-center mb-6 gap-3">
             {
                 home ? (
-                    <h1 class="text-2xl tracking-tight md:text-3xl font-logo">
+                    <h1 class="text-lg xs:text-xl sm:text-2xl md:text-3xl tracking-tight font-logo">
                         Collin Pfeifer
                     </h1>
                 ) : (
                     <a
                         href="/"
-                        class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
+                        class="text-lg xs:text-xl sm:text-2xl md:text-3xl tracking-tight font-logo no-underline hover:no-underline text-white whitespace-nowrap"
                     >
                         Collin Pfeifer
                     </a>
                 )
             }
-            <div class="flex gap-6 text-sm font-mono text-neutral-400">
+            <nav
+                class="flex gap-2.5 xs:gap-3 sm:gap-5 md:gap-6 text-xs xs:text-sm font-mono text-neutral-400"
+                aria-label="Primary"
+            >
                 {
                     nav.map((item) => (
                         <a
@@ -65,28 +68,28 @@ const nav: Array<{
                             }
                             class={
                                 active === item.key
-                                    ? "text-neutral-200"
-                                    : "hover:text-neutral-200 transition-colors"
+                                    ? "text-neutral-200 whitespace-nowrap"
+                                    : "hover:text-neutral-200 transition-colors whitespace-nowrap"
                             }
                         >
                             {item.label}
                         </a>
                     ))
                 }
-            </div>
+            </nav>
         </div>
 
         {
             tagline && (
                 <p class="mt-2 text-neutral-400">
-                    Craftsman. Working on 🦌{" "}
+                    Craftsman. Working on 🌵{" "}
                     <a
-                        href="https://trydeer.sh"
+                        href="https://madcactus.org"
                         target="_blank"
-                        class="hover:text-[#228B22] transition-colors"
+                        class="hover:text-neutral-200 transition-colors"
                         rel="noopener noreferrer"
                     >
-                        deer.sh
+                        Mad Cactus
                     </a>
                 </p>
             )

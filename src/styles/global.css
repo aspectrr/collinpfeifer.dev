@@ -3,6 +3,7 @@
 @theme {
     --font-logo: "NeueMachina", ui-sans-serif, system-ui;
     --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+    --breakpoint-xs: 400px;
 }
 
 @font-face {
