@@ -2,6 +2,7 @@
 import { type CollectionEntry, getCollection } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import Header from "../../components/Header.astro";
+import "../../styles/content.css";
 
 export async function getStaticPaths() {
   const sessions = await getCollection("coding-sessions", ({ data }) => !data.draft);
@@ -65,7 +66,7 @@ const { Content } = await session.render();
 </Layout>
 
 <style is:global>
-  /* Transcript-specific styles */
+  /* Transcript-specific styles. Shared a/ul/ol/li/code/pre rules live in src/styles/content.css. */
   .transcript h4 {
     font-size: 0.95rem;
     font-weight: 700;
@@ -92,33 +93,6 @@ const { Content } = await session.render();
     font-weight: 600;
   }
 
-  .transcript code {
-    color: #228B22;
-    background-color: #0f2e1a;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-size: 0.85em;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  }
-
-  .transcript pre {
-    background-color: #071a0e !important;
-    border: 1px solid #0f2e1a;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1.25rem;
-    overflow-x: auto;
-  }
-
-  .transcript pre code {
-    color: #228B22;
-    background-color: transparent;
-    padding: 0;
-    border-radius: 0;
-    font-size: 0.85rem;
-    line-height: 1.7;
-  }
-
   .transcript blockquote {
     border-left: 2px solid #262626;
     padding-left: 1rem;
@@ -136,28 +110,6 @@ const { Content } = await session.render();
   .transcript hr {
     border-color: #262626;
     margin: 2rem 0;
-  }
-
-  .transcript a {
-    color: #228B22;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-    transition: color 0.2s;
-  }
-
-  .transcript a:hover {
-    color: #32a852;
-  }
-
-  .transcript ul, .transcript ol {
-    padding-left: 1.5rem;
-    margin-bottom: 1.25rem;
-    color: #a3a3a3;
-  }
-
-  .transcript li {
-    margin-bottom: 0.5rem;
-    line-height: 1.7;
   }
 
   /* Details/summary for sub-agent blocks */
