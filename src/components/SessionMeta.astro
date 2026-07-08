@@ -1,0 +1,74 @@
+---
+interface Props {
+    pubDate: Date;
+    cost?: string;
+    tokens?: string;
+    /** Extra classes for the row (e.g. top margin). */
+    class?: string;
+}
+
+const { pubDate, cost, tokens, class: className = "" } = Astro.props;
+
+// The `tokens` frontmatter is a freeform string like "32,557 prompt, 373 completion".
+// Split into labeled values when it matches; fall back to the raw string otherwise.
+function parseTokens(raw?: string) {
+    if (!raw) return null;
+    const m = raw.match(/([\d,]+)\s*prompt[,\s]+([\d,]+)\s*completion/i);
+    if (m) return { prompt: m[1], completion: m[2] };
+    return { raw };
+}
+
+const tk = parseTokens(tokens);
+const dateStr = pubDate.toLocaleDateString("en-us", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+});
+---
+
+<div
+    class:list={[
+        "flex items-center gap-x-3 gap-y-1 flex-wrap font-mono text-xs",
+        className,
+    ]}
+>
+    <time datetime={pubDate.toISOString()} class="text-neutral-400">
+        {dateStr}
+    </time>
+
+    {
+        cost && (
+            <span>
+                <span class="text-neutral-500">cost </span>
+                <span class="text-neutral-300">{cost}</span>
+            </span>
+        )
+    }
+
+    {
+        tk && "prompt" in tk && (
+            <span>
+                <span class="text-neutral-500">prompt </span>
+                <span class="text-neutral-300">{tk.prompt}</span>
+            </span>
+        )
+    }
+
+    {
+        tk && "completion" in tk && (
+            <span>
+                <span class="text-neutral-500">completion </span>
+                <span class="text-neutral-300">{tk.completion}</span>
+            </span>
+        )
+    }
+
+    {
+        tk && "raw" in tk && (
+            <span>
+                <span class="text-neutral-500">tokens </span>
+                <span class="text-neutral-300">{tk.raw}</span>
+            </span>
+        )
+    }
+</div>

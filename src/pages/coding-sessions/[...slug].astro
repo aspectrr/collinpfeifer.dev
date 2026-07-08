@@ -2,6 +2,7 @@
 import { type CollectionEntry, getCollection } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import Header from "../../components/Header.astro";
+import SessionMeta from "../../components/SessionMeta.astro";
 import "../../styles/content.css";
 
 export async function getStaticPaths() {
@@ -25,21 +26,12 @@ const { Content } = await session.render();
         {session.data.title}
       </h1>
 
-      <div class="mt-4 flex items-center gap-3 flex-wrap text-sm text-neutral-500">
-        <time datetime={session.data.pubDate.toISOString()}>
-          {session.data.pubDate.toLocaleDateString("en-us", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </time>
-        {session.data.cost && (
-          <span class="font-mono text-xs text-neutral-700">· {session.data.cost}</span>
-        )}
-        {session.data.tokens && (
-          <span class="font-mono text-xs text-neutral-700">· {session.data.tokens}</span>
-        )}
-      </div>
+      <SessionMeta
+        pubDate={session.data.pubDate}
+        cost={session.data.cost}
+        tokens={session.data.tokens}
+        class="mt-4"
+      />
 
       <div class="mt-4 p-4 rounded-lg bg-neutral-900/60 border border-neutral-800">
         <p class="text-sm text-neutral-400 italic">{session.data.description}</p>

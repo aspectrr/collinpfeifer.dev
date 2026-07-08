@@ -1,6 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import Header from "../../components/Header.astro";
+import SessionMeta from "../../components/SessionMeta.astro";
 import { getCollection } from "astro:content";
 
 const sessions = (
@@ -30,21 +31,12 @@ const sessions = (
                 {session.data.title}
               </h3>
               <p class="mt-2 text-sm text-neutral-500 line-clamp-2">{session.data.description}</p>
-              <div class="mt-3 flex items-center gap-3 flex-wrap">
-                <time
-                  datetime={session.data.pubDate.toISOString()}
-                  class="text-xs font-mono text-neutral-600"
-                >
-                  {session.data.pubDate.toLocaleDateString("en-us", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </time>
-                {session.data.cost && (
-                  <span class="text-xs font-mono text-neutral-700">· {session.data.cost}</span>
-                )}
-              </div>
+              <SessionMeta
+                pubDate={session.data.pubDate}
+                cost={session.data.cost}
+                tokens={session.data.tokens}
+                class="mt-3"
+              />
             </a>
           ))
         }
