@@ -1,0 +1,97 @@
+---
+interface Props {
+    /** Highlights the matching nav item. Omit to leave none active (e.g. home). */
+    active?: "blog" | "sessions" | "poker";
+    /** Render the site name as an <h1> (home) instead of a link back to "/". */
+    home?: boolean;
+    /** Show the "Craftsman…" tagline under the nav. Default: true. */
+    tagline?: boolean;
+}
+
+const { active, home = false, tagline = true } = Astro.props;
+
+const nav: Array<{
+    href: string;
+    label: string;
+    key: string;
+    external?: boolean;
+}> = [
+    { href: "/blog", label: "blog", key: "blog" },
+    { href: "/coding-sessions", label: "sessions", key: "sessions" },
+    { href: "/poker", label: "poker", key: "poker" },
+    {
+        href: "https://github.com/aspectrr",
+        label: "github",
+        key: "github",
+        external: true,
+    },
+];
+---
+
+<header class="relative px-6 py-24 overflow-hidden">
+    <img
+        src="/art/G-fD3zSWMAAv6L4.jpeg"
+        alt=""
+        aria-hidden="true"
+        class="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none"
+        style="mask-image: linear-gradient(to bottom, black 70%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent);"
+    />
+    <div class="relative z-10 mx-auto max-w-2xl">
+        <div class="flex justify-between items-center mb-6">
+            {
+                home ? (
+                    <h1 class="text-2xl tracking-tight md:text-3xl font-logo">
+                        Collin Pfeifer
+                    </h1>
+                ) : (
+                    <a
+                        href="/"
+                        class="text-2xl tracking-tight md:text-3xl font-logo no-underline hover:no-underline text-white"
+                    >
+                        Collin Pfeifer
+                    </a>
+                )
+            }
+            <div class="flex gap-6 text-sm font-mono text-neutral-400">
+                {
+                    nav.map((item) => (
+                        <a
+                            href={item.href}
+                            target={item.external ? "_blank" : undefined}
+                            rel={
+                                item.external
+                                    ? "noopener noreferrer"
+                                    : undefined
+                            }
+                            class={
+                                active === item.key
+                                    ? "text-neutral-200"
+                                    : "hover:text-neutral-200 transition-colors"
+                            }
+                        >
+                            {item.label}
+                        </a>
+                    ))
+                }
+            </div>
+        </div>
+
+        {
+            tagline && (
+                <p class="mt-2 text-neutral-400">
+                    Craftsman. Working on 🦌{" "}
+                    <a
+                        href="https://trydeer.sh"
+                        target="_blank"
+                        class="hover:text-[#228B22] transition-colors"
+                        rel="noopener noreferrer"
+                    >
+                        deer.sh
+                    </a>
+                </p>
+            )
+        }
+
+        <slot />
+    </div>
+</header>
