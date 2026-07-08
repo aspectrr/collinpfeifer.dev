@@ -160,6 +160,15 @@ const payload = JSON.stringify(data);
 
 <script>
   import type { PokerChartData } from "./poker-chart-data";
+  import {
+    drawChart,
+    fmtMoney,
+    fmtSigned,
+    fmtFullDate,
+    GREEN,
+    RED,
+    type RenderState,
+  } from "./poker-chart-render";
 
   const root = document.getElementById("pk-root") as HTMLDivElement;
   const canvas = document.getElementById("pk-canvas") as HTMLCanvasElement;
@@ -169,89 +178,9 @@ const payload = JSON.stringify(data);
 
   const chartData: PokerChartData = JSON.parse(root.dataset.payload || "{}");
 
-  interface RenderState {
-    pad: { top: number; right: number; bottom: number; left: number };
-    minTime: number;
-    maxTime: number;
-    yMin: number;
-    yMax: number;
-    points: { t: number; cumulative: number; result: number }[];
-    chartW: number;
-    chartH: number;
-    includeYear: boolean;
-  }
   let renderState: RenderState | null = null;
 
-  const GREEN = "#34d399";
-  const RED = "#f87171";
   const MONO = "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace";
-  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-  function fmtMoney(n: number): string {
-    const sign = n < 0 ? "-$" : "$";
-    const abs = Math.abs(n);
-    if (abs >= 1e6) return sign + (abs / 1e6).toFixed(1) + "M";
-    if (abs >= 1e3) return sign + (abs / 1e3).toFixed(1) + "k";
-    // ponytail: keep cents on fractional small-stakes amounts; axis ticks are whole so they stay clean
-    if (!Number.isInteger(abs) && abs > 0) return sign + abs.toFixed(2);
-    return sign + Math.round(abs);
-  }
-
-  function fmtSigned(n: number): string {
-    return (n > 0 ? "+" : n < 0 ? "-" : "") + fmtMoney(Math.abs(n));
-  }
-
-  function niceNum(range: number, round: boolean): number {
-    if (range <= 0) return 1;
-    const exp = Math.floor(Math.log10(range));
-    const frac = range / Math.pow(10, exp);
-    let nice: number;
-    if (round) {
-      if (frac < 1.5) nice = 1;
-      else if (frac < 3) nice = 2;
-      else if (frac < 7) nice = 5;
-      else nice = 10;
-    } else {
-      if (frac <= 1) nice = 1;
-      else if (frac <= 2) nice = 2;
-      else if (frac <= 5) nice = 5;
-      else nice = 10;
-    }
-    return nice * Math.pow(10, exp);
-  }
-
-  function signedScale(minVal: number, maxVal: number, maxTicks = 6): number[] {
-    if (minVal === 0 && maxVal === 0) return [-1, 0, 1];
-    if (minVal > 0) minVal = 0;
-    if (maxVal < 0) maxVal = 0;
-    const span = niceNum(maxVal - minVal, false) || 1;
-    const step = niceNum(span / (maxTicks - 1), true);
-    const niceMin = Math.floor(minVal / step) * step;
-    const niceMax = Math.ceil(maxVal / step) * step;
-    const ticks: number[] = [];
-    for (let v = niceMin; v <= niceMax + step * 0.5; v += step)
-      ticks.push(Math.round(v * 1e6) / 1e6);
-    return ticks;
-  }
-
-  function dateTicks(minT: number, maxT: number, count = 6): number[] {
-    const span = maxT - minT;
-    if (span <= 0) return [minT];
-    const ticks: number[] = [];
-    for (let i = 0; i <= count; i++) ticks.push(minT + (span * i) / count);
-    return ticks;
-  }
-
-  function fmtDate(ts: number, includeYear: boolean): string {
-    const d = new Date(ts);
-    const base = MONTHS[d.getMonth()] + " " + d.getDate();
-    return includeYear ? base + " '" + String(d.getFullYear()).slice(-2) : base;
-  }
-
-  function fmtFullDate(ts: number): string {
-    const d = new Date(ts);
-    return MONTHS[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear();
-  }
 
   function render() {
     const dpr = window.devicePixelRatio || 1;
@@ -267,133 +196,14 @@ const payload = JSON.stringify(data);
     const ctx = canvas.getContext("2d")!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const points = chartData.points;
-    const pad = { top: 24, right: 16, bottom: 32, left: 64 };
-    const chartW = rect.width - pad.left - pad.right;
-    const chartH = height - pad.top - pad.bottom;
-
-    if (points.length === 0) {
-      renderState = null;
-      return;
-    }
-
-    let minTime = Infinity;
-    let maxTime = -Infinity;
-    let yMin = 0;
-    let yMax = 0;
-    for (const p of points) {
-      if (p.t < minTime) minTime = p.t;
-      if (p.t > maxTime) maxTime = p.t;
-      if (p.cumulative < yMin) yMin = p.cumulative;
-      if (p.cumulative > yMax) yMax = p.cumulative;
-    }
-    const yTicks = signedScale(yMin, yMax, 6);
-    const yLo = yTicks[0];
-    const yHi = yTicks[yTicks.length - 1];
-    const yRange = yHi - yLo || 1;
-    const timeRange = maxTime - minTime || 86400000;
-    const xTicks = dateTicks(minTime, maxTime, 6);
-    const includeYear = timeRange > 800 * 86400000;
-
-    const toX = (t: number) => pad.left + ((t - minTime) / timeRange) * chartW;
-    const toY = (v: number) => pad.top + chartH - ((v - yLo) / yRange) * chartH;
-    const zeroY = toY(0);
-
-    renderState = {
-      pad, minTime, maxTime, yMin: yLo, yMax: yHi, points, chartW, chartH, includeYear,
-    };
-
-    // horizontal grid + y labels
-    ctx.font = "10px " + MONO;
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 1;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for (const tick of yTicks) {
-      const y = Math.round(toY(tick)) + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(pad.left, y);
-      ctx.lineTo(pad.left + chartW, y);
-      ctx.stroke();
-      ctx.fillStyle = "#525252";
-      ctx.fillText(fmtMoney(tick), pad.left - 8, toY(tick));
-    }
-
-    // vertical grid + x labels
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    for (const tick of xTicks) {
-      const x = toX(tick);
-      if (x >= pad.left - 5 && x <= pad.left + chartW + 5) {
-        ctx.strokeStyle = "#1a1a1a";
-        ctx.beginPath();
-        ctx.moveTo(Math.round(x) + 0.5, pad.top);
-        ctx.lineTo(Math.round(x) + 0.5, pad.top + chartH);
-        ctx.stroke();
-        ctx.fillStyle = "#525252";
-        ctx.fillText(fmtDate(tick, includeYear), x, pad.top + chartH + 8);
-      }
-    }
-
-    // zero baseline
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pad.left, Math.round(zeroY) + 0.5);
-    ctx.lineTo(pad.left + chartW, Math.round(zeroY) + 0.5);
-    ctx.stroke();
-
-    // area fill per step (green above zero, red below)
-    for (let i = 0; i < points.length - 1; i++) {
-      const x0 = toX(points[i].t);
-      const x1 = toX(points[i + 1].t);
-      const y = toY(points[i].cumulative);
-      const color = points[i].cumulative >= 0 ? GREEN : RED;
-      const grad = ctx.createLinearGradient(0, Math.min(y, zeroY), 0, Math.max(y, zeroY));
-      grad.addColorStop(0, color + "30");
-      grad.addColorStop(1, color + "05");
-      ctx.fillStyle = grad;
-      ctx.fillRect(x0, Math.min(y, zeroY), x1 - x0, Math.abs(zeroY - y));
-    }
-
-    // step-after line
-    ctx.strokeStyle = GREEN;
-    ctx.lineWidth = 1.75;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    for (let i = 0; i < points.length; i++) {
-      const x = toX(points[i].t);
-      const y = toY(points[i].cumulative);
-      if (i === 0) ctx.moveTo(x, y);
-      else {
-        ctx.lineTo(x, toY(points[i - 1].cumulative));
-        ctx.lineTo(x, y);
-      }
-    }
-    ctx.stroke();
-
-    // session dots
-    for (let i = 0; i < points.length; i++) {
-      const x = toX(points[i].t);
-      const y = toY(points[i].cumulative);
-      ctx.fillStyle = points[i].result >= 0 ? GREEN : RED;
-      ctx.beginPath();
-      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    ctx.clearRect(0, 0, rect.width, height);
+    renderState = drawChart(ctx, chartData, rect.width, height, { fontFamily: MONO });
   }
 
   function drawHover(mouseX: number) {
     if (!renderState) return;
     const rs = renderState;
-    const dpr = window.devicePixelRatio || 1;
     const ctx = canvas.getContext("2d")!;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.scale(dpr, dpr);
     render();
 
     const { pad, minTime, maxTime, points, chartW, chartH } = rs;

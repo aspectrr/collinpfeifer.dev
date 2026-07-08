@@ -1,6 +1,9 @@
 # build output
 dist/
 
+# generated OG images (built by scripts/gen-og.ts on `bun run build`)
+public/og/*.png
+
 # generated types
 .astro/
 

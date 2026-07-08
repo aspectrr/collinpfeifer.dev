@@ -4,9 +4,15 @@ import "../styles/global.css";
 interface Props {
     title: string;
     description?: string;
+    ogImage?: string; // path under /public, e.g. "/og/poker.png"
 }
 
-const { title, description = "collinpfeifer.dev" } = Astro.props;
+const { title, description = "collinpfeifer.dev", ogImage } = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImageUrl = ogImage
+    ? new URL(ogImage, Astro.site).href
+    : undefined;
 ---
 
 <!doctype html>
@@ -17,7 +23,25 @@ const { title, description = "collinpfeifer.dev" } = Astro.props;
         <meta name="viewport" content="width=device-width" />
         <link rel="icon" href="/favicon.png" />
         <meta name="generator" content={Astro.generator} />
+        <link rel="canonical" href={canonical} />
         <title>{title}</title>
+
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+        {ogImageUrl && (
+            <meta property="og:image:width" content="1200" />
+        )}
+        {ogImageUrl && (
+            <meta property="og:image:height" content="630" />
+        )}
+
+        <meta name="twitter:card" content={ogImageUrl ? "summary_large_image" : "summary"} />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        {ogImageUrl && <meta name="twitter:image" content={ogImageUrl} />}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
