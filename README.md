@@ -8,21 +8,21 @@ bun create astro@latest -- --template basics
 
 ## 🚀 Project Structure
 
-Inside of your Astro project, you'll see the following folders and files:
+Inside of an Astro project, you'll see the following folders and files:
 
 ```text
 /
 ├── public/
 │   └── favicon.svg
 ├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
+│   ├── assets
+│   │   └── astro.svg
+│   ├── components
+│   │   └── Welcome.astro
+│   ├── layouts
+│   │   └── Layout.astro
+│   └── pages
+│       └── index.astro
 └── package.json
 ```
 
@@ -45,64 +45,60 @@ All commands are run from the root of the project, from a terminal:
 
 Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
 
-## Canary routing (`/canary/*`)
+## Canary (`canary.collinpfeifer.dev`)
 
-`https://collinpfeifer.dev/canary/*` is served by a separate Next.js app
-("Canary") hosted on Fly.io at `https://canary-collinpfeifer.fly.dev`, built
-with `basePath: "/canary"`. We route that app under `collinpfeifer.dev/canary`
-**without changing the URL in the browser** (no 301/302).
+Canary is a separate Next.js app (a safety investigator) hosted on Fly.io.
+It's served at **`https://canary.collinpfeifer.dev`** via a direct subdomain
+CNAME to Fly — no proxy, no CDN buffering, so its Server-Sent Events (live
+investigation progress) stream in real time.
 
-### How: one static-site rewrite (free, no extra service)
+### Why a subdomain (not a path)
 
-Render static-site **rewrites** can target a full external URL and serve it at
-the original path. Per the [Render docs](https://render.com/docs/redirects-rewrites),
-a Rewrite (status 200) fetches the destination behind the scenes — the browser
-stays on `collinpfeifer.dev/canary/*`. For a full-URL destination this is a
-reverse proxy: the prefix is preserved, HTTPS is used, and the upstream `Host`
-is the destination host automatically (the CDN must send it to open the TLS
-connection).
+`collinpfeifer.dev` is a static site on Render, served behind Cloudflare. A
+path-based reverse proxy (`/canary/*`) was attempted two ways:
 
-Add this rule to the `collinpfeifer.dev` static site (Render Dashboard → that
-static site → Redirects/Rewrites → add):
+1. **Static-site rewrite to Fly** — Cloudflare buffers the response, killing
+   SSE (confirmed: TTFB = 13.7s = total response time).
+2. **Proxy web service** (streams perfectly when hit directly) — but the
+   static-site rewrite routes through Cloudflare again, re-introducing the
+   buffering.
+
+Render's CDN sits in front of all static sites and buffers SSE. A subdomain
+CNAME to Fly bypasses Render entirely.
+
+### Setup
+
+**DNS** (wherever `collinpfeifer.dev` is managed):
+
+| Type | Name | Target | Proxy |
+| --- | --- | --- | --- |
+| CNAME | `canary` | `canary-collpfeifer.fly.dev` | DNS only (no Cloudflare orange cloud) |
+
+> If DNS is on Cloudflare, set the record to **DNS only** (grey cloud), not
+> proxied — a proxied record routes through Cloudflare again, which buffers SSE.
+
+**Fly** (in the Canary repo):
+
+1. Add `canary.collinpfeifer.dev` as a custom domain on the Fly app.
+2. Set Next.js `basePath` to `"/"` (was `"/canary"`) so the app serves at the
+   root of the subdomain.
+
+**Old links** (`collinpfeifer.dev/canary`):
+
+Add a 302 redirect on the static site (Render Dashboard → Redirects/Rewrites)
+so existing links don't break:
 
 | Source | Destination | Action |
 | --- | --- | --- |
-| `/canary`   | `https://canary-collinpfeifer.fly.dev/canary`   | Rewrite |
-| `/canary/*` | `https://canary-collinpfeifer.fly.dev/canary/*` | Rewrite |
+| `/canary` | `https://canary.collinpfeifer.dev` | Redirect (302) |
+| `/canary/*` | `https://canary.collinpfeifer.dev` | Redirect (302) |
 
-That's the entire setup — no proxy service, no extra cost, no code.
-
-### The one thing to verify after deploy: SSE streaming
-
-Canary streams investigation progress over Server-Sent Events. Most CDNs
-(Render static sites run behind Cloudflare) pass `text/event-stream` through
-unbuffered, so this *should* stream live — but buffering can't be confirmed
-without a deploy (the rewrite only exists on Render's CDN, not locally).
-
-After the rewrite is live, confirm SSE is not buffered:
+### Verify
 
 ```sh
-# 1. Canary page loads at the collinpfeifer.dev URL (browser bar unchanged):
-curl -sI https://collinpfeifer.dev/canary              # -> 200, served by Canary
-
-# 2. SSE: stream chunks must arrive incrementally, not all at once.
-#    Point this at whichever /canary/api/* route Canary streams from:
-curl -sN https://collinpfeifer.dev/canary/api/<stream-endpoint>
+curl -sI https://canary.collinpfeifer.dev           # -> 200, served by Canary
+# SSE streams live (TTFB < 1s, chunks arrive incrementally):
+curl -sN https://canary.collinpfeifer.dev/api/investigate \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://github.com/vercel/next.js"}'
 ```
-
-If chunks arrive live → done, shipping the free setup.
-
-### Fallback if SSE buffers
-
-If step 2 shows buffering (all chunks dump at once after a delay), the free
-rewrite can't guarantee streaming. The fallback is a tiny zero-dependency
-Node reverse-proxy service that pipes responses with no buffering. That proxy
-(`proxy/server.mjs`) lives in git history on this branch — restore it and route
-`/canary/*` at the proxy's URL instead of at Fly directly. See the first commit
-on branch `canary-proxy` for the proxy + `render.yaml`.
-
-### Notes
-
-- The Fly backend is public; no secrets are involved.
-- Do **not** strip the `/canary` prefix — Fly's `basePath: "/canary"` expects
-  to receive it.
