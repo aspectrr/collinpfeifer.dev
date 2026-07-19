@@ -59,6 +59,10 @@ const server = http.createServer((clientReq, clientRes) => {
       for (const [k, v] of Object.entries(upstreamRes.headers)) {
         if (!HOP.has(k.toLowerCase())) respHeaders[k] = v;
       }
+      // Tell upstream proxies (nginx, Cloudflare) to NOT buffer — SSE must
+      // flush chunk-by-chunk. Without this, proxies hold the whole response.
+      respHeaders["x-accel-buffering"] = "no";
+      respHeaders["cache-control"] = "no-cache";
       clientRes.writeHead(upstreamRes.statusCode ?? 502, respHeaders);
       // Pipe straight through — NO buffering, so Server-Sent Events flush in
       // real time as the investigator makes progress.
