@@ -45,105 +45,64 @@ All commands are run from the root of the project, from a terminal:
 
 Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
 
-## Canary proxy (`/canary/*`)
+## Canary routing (`/canary/*`)
 
 `https://collinpfeifer.dev/canary/*` is served by a separate Next.js app
 ("Canary") hosted on Fly.io at `https://canary-collinpfeifer.fly.dev`, built
-with `basePath: "/canary"`. This repo reverse-proxies that app so it appears at
-`collinpfeifer.dev/canary` **without changing the URL in the browser**.
+with `basePath: "/canary"`. We route that app under `collinpfeifer.dev/canary`
+**without changing the URL in the browser** (no 301/302).
 
-### Why a proxy service (not just a `_redirects` rewrite)
+### How: one static-site rewrite (free, no extra service)
 
-A Render static-site rewrite *can* point at an external URL, but it gives **no
-control** over two things Canary needs:
+Render static-site **rewrites** can target a full external URL and serve it at
+the original path. Per the [Render docs](https://render.com/docs/redirects-rewrites),
+a Rewrite (status 200) fetches the destination behind the scenes — the browser
+stays on `collinpfeifer.dev/canary/*`. For a full-URL destination this is a
+reverse proxy: the prefix is preserved, HTTPS is used, and the upstream `Host`
+is the destination host automatically (the CDN must send it to open the TLS
+connection).
 
-1. **The upstream `Host` header** — must be `canary-collinpfeifer.fly.dev`.
-2. **Response buffering** — Canary streams investigation progress over
-   Server-Sent Events (SSE). A buffering proxy holds the whole response and
-   flushes it at once, which kills the live stream.
+Add this rule to the `collinpfeifer.dev` static site (Render Dashboard → that
+static site → Redirects/Rewrites → add):
 
-So `/canary/*` is routed to a tiny **Render web service**
-(`proxy/server.mjs`, zero dependencies) that:
+| Source | Destination | Action |
+| --- | --- | --- |
+| `/canary`   | `https://canary-collinpfeifer.fly.dev/canary`   | Rewrite |
+| `/canary/*` | `https://canary-collinpfeifer.fly.dev/canary/*` | Rewrite |
 
-- preserves the `/canary` prefix verbatim (the Next.js basePath expects it),
-- sets `Host: canary-collinpfeifer.fly.dev` upstream,
-- pipes the response through with **no buffering** (raw `http` stream pipe),
-- talks HTTPS to Fly.
+That's the entire setup — no proxy service, no extra cost, no code.
 
-Render **web** services are origin services (the type people run
-SSE/WebSocket apps on), so they stream. The proxy forwards requests with
-`requestTimeout = 0` so long-running investigations aren't cut off.
+### The one thing to verify after deploy: SSE streaming
 
-```
-collinpfeifer.dev/canary/*
-  --(static-site rewrite, status 200)-->  https://canary-proxy.onrender.com/canary/*
-                                                |
-                                                v   streaming · Host set · prefix kept
-                                   https://canary-collinpfeifer.fly.dev/canary/*
-```
+Canary streams investigation progress over Server-Sent Events. Most CDNs
+(Render static sites run behind Cloudflare) pass `text/event-stream` through
+unbuffered, so this *should* stream live — but buffering can't be confirmed
+without a deploy (the rewrite only exists on Render's CDN, not locally).
 
-### Deploy
-
-1. **Deploy the proxy.** In the Render Dashboard, create a Blueprint from this
-   repo (or add the `canary-proxy` service from `render.yaml`). It runs
-   `node proxy/server.mjs` on the Node runtime with no build step. Note its
-   public URL, e.g. `https://canary-proxy-xxxx.onrender.com`.
-2. **Add one rewrite rule to the `collinpfeifer.dev` static site** (Dashboard →
-   that static site → Redirects/Rewrites → add; or in its own blueprint
-   `routes:`):
-
-   | Source | Destination | Action |
-   | --- | --- | --- |
-   | `/canary`    | `https://canary-proxy-xxxx.onrender.com/canary`    | Rewrite |
-   | `/canary/*`  | `https://canary-proxy-xxxx.onrender.com/canary/*`  | Rewrite |
-
-   (Rewrite = status 200, a reverse proxy — the browser URL stays
-   `collinpfeifer.dev/canary/*`.)
-
-3. Wait for both deploys to go live, then verify below.
-
-### Verify
-
-**Local** (proxy hits the real Fly backend):
+After the rewrite is live, confirm SSE is not buffered:
 
 ```sh
-PORT=8081 node proxy/server.mjs &
-curl -sI localhost:8081/canary          # -> 200, x-powered-by: Next.js, server: Fly
-```
+# 1. Canary page loads at the collinpfeifer.dev URL (browser bar unchanged):
+curl -sI https://collinpfeifer.dev/canary              # -> 200, served by Canary
 
-**Local streaming self-check** (proves the proxy does not buffer SSE):
-
-```sh
-# origin that emits one line every 250ms
-cat > /tmp/origin.mjs <<'EOF'
-import http from "node:http";
-http.createServer((_, res) => {
-  res.writeHead(200, { "content-type": "text/event-stream" });
-  let i = 0;
-  const t = setInterval(() => {
-    res.write(`data: chunk-${i} @ ${Date.now()}\n\n`);
-    if (++i >= 4) { clearInterval(t); res.end(); }
-  }, 250);
-}).listen(9099);
-EOF
-node /tmp/origin.mjs &
-UPSTREAM=http://localhost:9099 PORT=8082 node proxy/server.mjs &
-curl -sN localhost:8082/canary          # 4 lines ~250ms apart => streamed, not buffered
-```
-
-**Production** (after deploy):
-
-```sh
-curl -sI https://collinpfeifer.dev/canary            # -> 200, served by Canary
-# SSE: connect to a Canary stream endpoint and watch chunks arrive live, e.g.
+# 2. SSE: stream chunks must arrive incrementally, not all at once.
+#    Point this at whichever /canary/api/* route Canary streams from:
 curl -sN https://collinpfeifer.dev/canary/api/<stream-endpoint>
 ```
+
+If chunks arrive live → done, shipping the free setup.
+
+### Fallback if SSE buffers
+
+If step 2 shows buffering (all chunks dump at once after a delay), the free
+rewrite can't guarantee streaming. The fallback is a tiny zero-dependency
+Node reverse-proxy service that pipes responses with no buffering. That proxy
+(`proxy/server.mjs`) lives in git history on this branch — restore it and route
+`/canary/*` at the proxy's URL instead of at Fly directly. See the first commit
+on branch `canary-proxy` for the proxy + `render.yaml`.
 
 ### Notes
 
 - The Fly backend is public; no secrets are involved.
-- On the Render **free** plan the proxy web service spins down after ~15 min of
-  inactivity (first request after idle takes a few seconds to wake). Use a paid
-  plan if you need always-on latency.
-- Do **not** strip the `/canary` prefix anywhere — Fly's `basePath: "/canary"`
-  expects to receive it.
+- Do **not** strip the `/canary` prefix — Fly's `basePath: "/canary"` expects
+  to receive it.
